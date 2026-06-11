@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Helpers\OssHelper;
 use App\Services\FileConvertService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -36,7 +37,7 @@ class FileUploadController extends Controller
     public function uploadFile(Request $request): JsonResponse
     {
         $request->validate([
-            'file' => 'required|file|max:10240', // 最大 10MB
+            'file' => 'required|file|max:524288', // 最大 500MB
             'type' => 'required|in:video,document',
         ]);
 
@@ -55,7 +56,11 @@ class FileUploadController extends Controller
         // 生成存储路径
         $extension = $file->getClientOriginalExtension();
         $fileName = time() . '_' . Str::random(10) . '.' . $extension;
-        $path = $file->storeAs('courses/' . date('Y/m'), $fileName, 'public');
+        $path = OssHelper::path($type, $fileName);
+
+        // 上传到 OSS
+        $fileContent = file_get_contents($file->getRealPath());
+        Storage::disk('oss')->put($path, $fileContent);
 
         // 如果是图片，自动转换为 WEBP
         if (str_starts_with($file->getMimeType(), 'image/') && $file->getMimeType() !== 'image/webp') {
@@ -73,13 +78,13 @@ class FileUploadController extends Controller
 
         return response()->json([
             'data' => [
-                'url' => '/storage/' . $path,
+                'url' => OssHelper::url($path),
                 'path' => $path,
                 'file_name' => $file->getClientOriginalName(),
                 'file_size' => $file->getSize(),
                 'mime_type' => $file->getMimeType(),
                 'preview_path' => $previewPath,
-                'preview_url' => $previewPath ? '/storage/' . $previewPath : null,
+                'preview_url' => $previewPath ? OssHelper::url($previewPath) : null,
             ],
         ]);
     }
@@ -234,8 +239,8 @@ class FileUploadController extends Controller
         // 生成最终文件路径
         $extension = pathinfo($meta['file_name'], PATHINFO_EXTENSION);
         $fileName = time() . '_' . Str::random(10) . '.' . $extension;
-        $finalDir = 'courses/' . date('Y/m');
-        $finalPath = "{$finalDir}/{$fileName}";
+        $type = $meta['type'] ?? 'document';
+        $finalPath = OssHelper::path($type, $fileName);
 
         // 流式合并分片到临时文件，避免内存溢出
         $tempFile = tempnam(sys_get_temp_dir(), 'upload_');
@@ -250,10 +255,9 @@ class FileUploadController extends Controller
         }
         fclose($handle);
 
-        // 将临时文件写入 public 磁盘
-        $writeStream = fopen($tempFile, 'r');
-        Storage::disk('public')->writeStream($finalPath, $writeStream);
-        fclose($writeStream);
+        // 上传到 OSS
+        $fileContent = file_get_contents($tempFile);
+        Storage::disk('oss')->put($finalPath, $fileContent);
         unlink($tempFile);
 
         // 清理临时分片
@@ -267,12 +271,12 @@ class FileUploadController extends Controller
 
         return response()->json([
             'data' => [
-                'url' => '/storage/' . $finalPath,
+                'url' => OssHelper::url($finalPath),
                 'path' => $finalPath,
                 'file_name' => $meta['file_name'],
                 'file_size' => $meta['file_size'],
                 'preview_path' => $previewPath,
-                'preview_url' => $previewPath ? '/storage/' . $previewPath : null,
+                'preview_url' => $previewPath ? OssHelper::url($previewPath) : null,
             ],
         ]);
     }

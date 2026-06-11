@@ -722,9 +722,9 @@ class AdminController extends Controller
             return response()->json(['message' => '附件不属于该课程'], 422);
         }
 
-        // 删除文件
-        if (\Storage::disk('public')->exists($attachment->file_path)) {
-            \Storage::disk('public')->delete($attachment->file_path);
+        // 删除文件（从 OSS）
+        if (\Storage::disk('oss')->exists($attachment->file_path)) {
+            \Storage::disk('oss')->delete($attachment->file_path);
         }
 
         $attachment->delete();
@@ -1565,25 +1565,19 @@ class AdminController extends Controller
                             throw new \Exception("ZIP 中未找到文件：{$contentUrl}");
                         }
 
-                        // 复制文件到 storage
+                        // 上传文件到 OSS
                         $extension = pathinfo($contentUrl, PATHINFO_EXTENSION);
                         $fileName = time() . '_' . \Illuminate\Support\Str::random(10) . '.' . $extension;
-                        $destPath = 'courses/' . date('Y/m') . '/' . $fileName;
-                        $fullDestPath = storage_path('app/public/' . $destPath);
-
-                        // 确保目录存在
-                        $destDir = dirname($fullDestPath);
-                        if (!is_dir($destDir)) {
-                            mkdir($destDir, 0755, true);
-                        }
-
-                        copy($sourceFile, $fullDestPath);
-                        $contentUrl = $destPath;
+                        $type = $type === 'video' ? 'video' : 'document';
+                        $ossPath = \App\Helpers\OssHelper::path($type, $fileName);
+                        
+                        $fileContent = file_get_contents($sourceFile);
+                        \Storage::disk('oss')->put($ossPath, $fileContent);
+                        $contentUrl = $ossPath;
                     } else {
-                        // CSV 模式：验证文件是否存在
-                        $fullPath = storage_path('app/public/' . $contentUrl);
-                        if (!file_exists($fullPath)) {
-                            throw new \Exception("本地文件 {$contentUrl} 不存在");
+                        // CSV 模式：验证文件是否存在于 OSS
+                        if (!\Storage::disk('oss')->exists($contentUrl)) {
+                            throw new \Exception("OSS 文件 {$contentUrl} 不存在");
                         }
                     }
                 }
