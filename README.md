@@ -85,7 +85,7 @@ academy_api/
 APP_NAME="Renhotec Academy"
 APP_ENV=local
 APP_DEBUG=true
-APP_URL=http://localhost:8000
+APP_URL=http://localhost:9000
 FRONTEND_URL=http://localhost:3000
 
 DB_CONNECTION=mysql
@@ -98,7 +98,7 @@ DB_PASSWORD=
 REDIS_HOST=127.0.0.1
 REDIS_PORT=6379
 
-SANCTUM_STATEFUL_DOMAINS=localhost:3000,localhost:8000
+SANCTUM_STATEFUL_DOMAINS=localhost:3000,localhost:9000
 ```
 
 ## API 路由概览
@@ -182,7 +182,7 @@ php artisan route:clear
 php artisan storage:link
 
 # 启动开发服务器
-php artisan serve --host 0.0.0.0 --port 8000
+php artisan serve --host 0.0.0.0 --port 9000
 ```
 
 ## 测试
@@ -337,7 +337,7 @@ php artisan route:cache
 docker build -t renhotec-academy-api .
 
 # 运行容器
-docker run -d -p 8000:8000 --name api renhotec-academy-api
+docker run -d -p 9000:9000 --name api renhotec-academy-api
 
 # 查看日志
 docker logs -f api

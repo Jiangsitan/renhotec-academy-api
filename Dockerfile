@@ -43,7 +43,7 @@ RUN chown -R www-data:www-data /app/storage /app/bootstrap/cache \
     && chmod -R 775 /app/storage /app/bootstrap/cache
 
 # 暴露端口
-EXPOSE 8000
+EXPOSE 9000
 
 # 启动 PHP-FPM
 CMD ["php-fpm"]
