@@ -290,13 +290,73 @@ APP_DEBUG=false
 APP_URL=https://api.yourdomain.com
 ```
 
+## 项目打包
+
+### 生产环境构建
+
+```bash
+# 安装依赖（排除开发依赖）
+composer install --optimize-autoloader --no-dev
+
+# 生成自动加载文件
+composer dump-autoload --optimize
+
+# 缓存配置
+php artisan config:cache
+
+# 缓存路由
+php artisan route:cache
+
+# 缓存视图
+php artisan view:cache
+
+# 缓存事件
+php artisan event:cache
+```
+
+### 一键部署脚本
+
+```bash
+# 使用 composer setup 命令（自动执行初始化流程）
+composer setup
+
+# 或手动执行以下步骤
+composer install --no-dev
+cp .env.example .env
+php artisan key:generate
+php artisan migrate --force
+php artisan storage:link
+php artisan config:cache
+php artisan route:cache
+```
+
+### Docker 打包
+
+```bash
+# 构建镜像
+docker build -t renhotec-academy-api .
+
+# 运行容器
+docker run -d -p 8000:8000 --name api renhotec-academy-api
+
+# 查看日志
+docker logs -f api
+```
+
 ### 优化命令
 
 ```bash
-composer install --optimize-autoloader --no-dev
+# 缓存优化
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
+php artisan event:cache
+
+# 清除缓存
+php artisan cache:clear
+php artisan config:clear
+php artisan route:clear
+php artisan view:clear
 ```
 
 ## 联系方式
