@@ -1,26 +1,34 @@
-FROM php:8.3-fpm-alpine
+# 1. 明确指定基于 Debian 的官方 FPM 镜像
+FROM php:8.4-fpm
 
-# ======= 核心优化：在 apk add 之前，强行切到国内阿里云镜像源 =======
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/repositories
-# 安装系统依赖
-RUN apk add --no-cache \
+# 2. 核心优化：将 Debian 软件源切换为国内阿里云镜像源（适配 Debian 12 Bookworm 格式）
+RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources \
+    && sed -i 's/security.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources
+
+# 3. 使用 apt-get 安装 Debian 环境下的编译依赖与工具
+RUN apt-get update && apt-get install -y --no-install-recommends \
     nginx \
     supervisor \
     libpng-dev \
-    libjpeg-turbo-dev \
-    freetype-dev \
-    oniguruma-dev \
+    libjpeg62-turbo-dev \
+    libfreetype6-dev \
+    libonig-dev \
     libxml2-dev \
+    libzip-dev \
     zip \
     unzip \
-    icu-dev
+    libicu-dev \
+    pkg-config \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# 安装 PHP 扩展
+# 4. 编译并安装 PHP 核心扩展（去掉了已内置的 mbstring 和 xml）
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install pdo_mysql mbstring xml bcmath gd intl zip opcache
+    && docker-php-ext-install pdo_mysql bcmath gd intl zip opcache
 
-# 安装 Composer
+# 5. 引入 Composer 并配置国内全量镜像加速
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+RUN composer config -g repo.packagist composer https://mirrors.aliyun.com/composer/
 
 # 设置工作目录
 WORKDIR /app
@@ -34,13 +42,13 @@ RUN composer install --optimize-autoloader --no-dev --no-scripts
 # 复制项目文件
 COPY . .
 
-# 运行 Laravel 优化命令
+# 运行 Laravel 优化缓存
 RUN composer dump-autoload --optimize \
     && php artisan config:cache \
     && php artisan route:cache \
     && php artisan view:cache
 
-# 设置权限
+# 设置权限（Debian 下 FPM 用户同样是 www-data）
 RUN chown -R www-data:www-data /app/storage /app/bootstrap/cache \
     && chmod -R 775 /app/storage /app/bootstrap/cache
 
