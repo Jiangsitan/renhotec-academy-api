@@ -26,16 +26,17 @@ services:
     container_name: renhotec-redis
     restart: unless-stopped
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "${REDIS_PORT:-6479}:6379"
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
 
   # Laravel API 服务
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: academy-api:v1
+    #build:
+    #  context: .
+    #  dockerfile: Dockerfile
     container_name: renhotec-api
     restart: unless-stopped
     environment:
@@ -48,7 +49,7 @@ services:
       - DB_USERNAME=${DB_USERNAME:-renhotec}
       - DB_PASSWORD=${DB_PASSWORD:-renhotec123}
       - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      - REDIS_PORT=6479
     depends_on:
       mysql:
         condition: service_healthy
