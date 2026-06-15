@@ -8,14 +8,16 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('comment_likes', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('comment_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->timestamps();
+        if (!Schema::hasTable('comment_likes')) {
+            Schema::create('comment_likes', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('comment_id')->constrained()->cascadeOnDelete();
+                $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+                $table->timestamps();
 
-            $table->unique(['comment_id', 'user_id']);
-        });
+                $table->unique(['comment_id', 'user_id']);
+            });
+        }
     }
 
     public function down(): void
