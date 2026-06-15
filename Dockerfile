@@ -1,5 +1,7 @@
 FROM php:8.3-fpm-alpine
 
+# ======= 核心优化：在 apk add 之前，强行切到国内阿里云镜像源 =======
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/repositories
 # 安装系统依赖
 RUN apk add --no-cache \
     nginx \
