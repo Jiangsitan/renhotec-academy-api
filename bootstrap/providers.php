@@ -4,5 +4,5 @@ use App\Providers\AppServiceProvider;
 
 return [
     AppServiceProvider::class,
-    IIDestiny\LaravelFilesystemOSS\OSSServiceProvider::class,
+    AlphaSnow\LaravelFilesystem\Aliyun\AliyunServiceProvider::class,
 ];
