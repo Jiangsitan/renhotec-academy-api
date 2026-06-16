@@ -16,10 +16,10 @@ class FileServeController extends Controller
      */
     public function preview(Request $request, string $path): StreamedResponse|\Illuminate\Http\JsonResponse
     {
-        $publicDisk = Storage::disk('public');
+        $disk = Storage::disk('oss');
 
         // 检查文件是否存在
-        if (!$publicDisk->exists($path)) {
+        if (!$disk->exists($path)) {
             return response()->json(['message' => '文件不存在'], 404);
         }
 
@@ -27,14 +27,13 @@ class FileServeController extends Controller
         $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
         if (in_array($ext, ['ppt', 'pptx'])) {
             $previewPath = FileConvertService::getPreviewPath($path);
-            if ($previewPath !== $path && $publicDisk->exists($previewPath)) {
+            if ($previewPath !== $path && $disk->exists($previewPath)) {
                 $path = $previewPath;
             }
         }
 
-        $filePath = $publicDisk->path($path);
-        $mimeType = $publicDisk->mimeType($path);
-        $fileSize = $publicDisk->size($path);
+        $mimeType = $disk->mimeType($path);
+        $fileSize = $disk->size($path);
 
         // 设置响应头：inline 预览，不下载
         $headers = [
@@ -47,13 +46,11 @@ class FileServeController extends Controller
         // 支持 Range 请求（大文件分段加载）
         $range = $request->header('Range');
         if ($range) {
-            return $this->handleRangeRequest($filePath, $fileSize, $mimeType, $range, $headers);
+            return $this->handleRangeRequest($disk, $path, $fileSize, $mimeType, $range, $headers);
         }
 
-        return new StreamedResponse(function () use ($filePath) {
-            $stream = fopen($filePath, 'rb');
-            fpassthru($stream);
-            fclose($stream);
+        return new StreamedResponse(function () use ($disk, $path) {
+            echo $disk->get($path);
         }, 200, $headers);
     }
 
@@ -61,7 +58,8 @@ class FileServeController extends Controller
      * 处理 Range 请求
      */
     protected function handleRangeRequest(
-        string $filePath,
+        $disk,
+        string $path,
         int $fileSize,
         string $mimeType,
         string $range,
@@ -79,19 +77,9 @@ class FileServeController extends Controller
 
         $length = $end - $start + 1;
 
-        return new StreamedResponse(function () use ($filePath, $start, $length) {
-            $stream = fopen($filePath, 'rb');
-            fseek($stream, $start);
-            $remaining = $length;
-            $bufferSize = 8192;
-
-            while ($remaining > 0 && !feof($stream)) {
-                $readSize = min($bufferSize, $remaining);
-                echo fread($stream, $readSize);
-                $remaining -= $readSize;
-            }
-
-            fclose($stream);
+        return new StreamedResponse(function () use ($disk, $path, $start, $length) {
+            $content = $disk->get($path);
+            echo substr($content, $start, $length);
         }, 206, array_merge($headers, [
             'Content-Range' => "bytes {$start}-{$end}/{$fileSize}",
             'Content-Length' => $length,
