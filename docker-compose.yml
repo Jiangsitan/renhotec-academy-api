@@ -1,5 +1,4 @@
 services:
-  # MySQL 数据库
   mysql:
     image: mysql:8.0
     container_name: renhotec-mysql
@@ -20,7 +19,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # Redis 缓存
   redis:
     image: redis:8-alpine
     container_name: renhotec-redis
@@ -29,27 +27,24 @@ services:
       - "${REDIS_PORT:-6479}:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-Rh_2026}
 
-  # Laravel API 服务
   api:
     image: academy-api:v1
-    #build:
-    #  context: .
-    #  dockerfile: Dockerfile
     container_name: renhotec-api
     restart: unless-stopped
     environment:
       - APP_ENV=production
       - APP_DEBUG=false
-      - APP_URL=${APP_URL:-http://localhost:9000}
+      - APP_URL=${APP_URL:-https://learn.renhotec.cn}
       - DB_HOST=mysql
       - DB_PORT=3306
       - DB_DATABASE=renhotec_academy
       - DB_USERNAME=${DB_USERNAME:-renhotec}
       - DB_PASSWORD=${DB_PASSWORD:-renhotec123}
       - REDIS_HOST=redis
-      - REDIS_PORT=6479
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-Rh_2026}
     depends_on:
       mysql:
         condition: service_healthy
@@ -59,17 +54,25 @@ services:
       - storage_data:/app/storage
       - ./public/storage:/app/public/storage
 
-  # Nginx 反向代理
   nginx:
     image: nginx:alpine
     container_name: renhotec-nginx
     restart: unless-stopped
     ports:
-      - "${APP_PORT:-9000}:80"
+      - "9000:80"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - api
+
+  web:
+    image: academy-nuxt:v1
+    container_name: renhotec-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NUXT_PUBLIC_API_BASE=/api
 
 volumes:
   mysql_data:
