@@ -69,7 +69,7 @@ return [
             'domain' => env('OSS_CDN_DOMAIN'),
             'use_ssl' => env('OSS_SSL', true),
             'is_cname' => env('OSS_IS_CNAME', false),
-            'prefix' => env('OSS_PREFIX', ''),
+            
         ],
 
     ],
