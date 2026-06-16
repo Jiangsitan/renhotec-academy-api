@@ -42,6 +42,9 @@ RUN composer install --optimize-autoloader --no-dev --no-scripts
 # 复制项目文件
 COPY . .
 
+# 复制 supervisor 配置
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
 # 运行 Laravel 优化缓存
 RUN composer dump-autoload --optimize \
     && php artisan config:cache \
@@ -55,5 +58,5 @@ RUN chown -R www-data:www-data /app/storage /app/bootstrap/cache \
 # 暴露端口
 EXPOSE 9000
 
-# 启动 PHP-FPM
-CMD ["php-fpm"]
+# 启动 supervisor（同时启动 nginx 和 php-fpm）
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
