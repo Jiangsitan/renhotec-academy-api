@@ -9,6 +9,7 @@
         "php": "^8.3",
         "aliyuncs/oss-sdk-php": "*",
         "alphasnow/aliyun-oss-laravel": "^4.0",
+        "intervention/image": "^3.0",
         "laravel/framework": "^13.8",
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^3.0",

@@ -19,6 +19,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     libicu-dev \
     pkg-config \
+    ffmpeg \
+    ghostscript \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
