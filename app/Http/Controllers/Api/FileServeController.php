@@ -23,12 +23,22 @@ class FileServeController extends Controller
             return response()->json(['message' => '文件不存在'], 404);
         }
 
-        // 对于 PPT/PPTX，返回转换后的 PDF
         $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+
+        // 对于 PPT/PPTX，返回转换后的 PDF
         if (in_array($ext, ['ppt', 'pptx'])) {
             $previewPath = FileConvertService::getPreviewPath($path);
             if ($previewPath !== $path && $disk->exists($previewPath)) {
                 $path = $previewPath;
+                $ext = 'pdf';
+            }
+        }
+
+        // 对于 PDF，压缩后返回（提高加载速度）
+        if ($ext === 'pdf') {
+            $compressedPath = $this->compressPdf($path);
+            if ($compressedPath) {
+                $path = $compressedPath;
             }
         }
 
@@ -52,6 +62,60 @@ class FileServeController extends Controller
         return new StreamedResponse(function () use ($disk, $path) {
             echo $disk->get($path);
         }, 200, $headers);
+    }
+
+    /**
+     * 使用 Ghostscript 压缩 PDF（提高加载速度）
+     */
+    private function compressPdf(string $path): ?string
+    {
+        try {
+            // 生成压缩后的路径
+            $compressedPath = preg_replace('/\.pdf$/i', '_compressed.pdf', $path);
+
+            // 检查是否已有压缩版本
+            $disk = Storage::disk('oss');
+            if ($disk->exists($compressedPath)) {
+                return $compressedPath;
+            }
+
+            // 下载原始 PDF 到临时文件
+            $tempInput = tempnam(sys_get_temp_dir(), 'pdf_input_') . '.pdf';
+            $pdfContent = $disk->get($path);
+            file_put_contents($tempInput, $pdfContent);
+
+            // 生成输出路径
+            $tempOutput = tempnam(sys_get_temp_dir(), 'pdf_output_') . '.pdf';
+
+            // 使用 Ghostscript 压缩
+            $command = sprintf(
+                'gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook '
+                . '-dNOPAUSE -dQUIET -dBATCH -sOutputFile=%s %s 2>&1',
+                escapeshellarg($tempOutput),
+                escapeshellarg($tempInput)
+            );
+
+            exec($command, $output, $returnCode);
+
+            if ($returnCode !== 0 || !file_exists($tempOutput) || filesize($tempOutput) === 0) {
+                // 压缩失败，返回原文件
+                @unlink($tempInput);
+                return null;
+            }
+
+            // 上传压缩后的文件到 OSS
+            $compressedContent = file_get_contents($tempOutput);
+            $disk->put($compressedPath, $compressedContent);
+
+            // 清理临时文件
+            @unlink($tempInput);
+            @unlink($tempOutput);
+
+            return $compressedPath;
+        } catch (\Exception $e) {
+            \Log::error('PDF 压缩失败: ' . $e->getMessage());
+            return null;
+        }
     }
 
     /**

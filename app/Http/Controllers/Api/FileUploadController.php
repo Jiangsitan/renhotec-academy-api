@@ -70,6 +70,11 @@ class FileUploadController extends Controller
             }
         }
 
+        // 如果是视频，触发异步转换为 WebM
+        if (str_starts_with($file->getMimeType(), 'video/') && $file->getMimeType() !== 'video/webm') {
+            \App\Jobs\ProcessVideoConversion::dispatch($path, $file->getClientOriginalName());
+        }
+
         // 如果是 PPT/PPTX，自动转换为 PDF
         $previewPath = null;
         if (FileConvertService::needsConversion($file->getClientOriginalName())) {
@@ -90,40 +95,36 @@ class FileUploadController extends Controller
     }
 
     /**
-     * 将图片转换为 WEBP 格式
+     * 将图片转换为 WEBP 格式（支持 OSS）
      */
     private function convertToWebp(string $path): ?string
     {
-        $fullPath = Storage::disk('public')->path($path);
+        try {
+            // 从 OSS 读取图片
+            $imageContent = Storage::disk('oss')->get($path);
+            if (!$imageContent) {
+                return null;
+            }
 
-        if (!file_exists($fullPath)) {
-            return null;
-        }
+            // 使用 Intervention Image 转换
+            $manager = new \Intervention\Image\ImageManager(new \Intervention\Image\Drivers\Gd\Driver());
+            $image = $manager->read($imageContent);
+            $webpData = $image->toWebp(85)->toString();
 
-        $image = imagecreatefromstring(file_get_contents($fullPath));
-        if (!$image) {
-            return null;
-        }
+            // 生成 WebP 路径
+            $webpPath = preg_replace('/\.\w+$/', '.webp', $path);
 
-        $webpPath = preg_replace('/\.\w+$/', '.webp', $path);
-        $fullWebpPath = Storage::disk('public')->path($webpPath);
+            // 上传到 OSS
+            Storage::disk('oss')->put($webpPath, $webpData);
 
-        // 确保目录存在
-        $dir = dirname($fullWebpPath);
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-
-        $success = imagewebp($image, $fullWebpPath, 85);
-        imagedestroy($image);
-
-        if ($success && file_exists($fullWebpPath)) {
             // 删除原文件
-            unlink($fullPath);
-            return $webpPath;
-        }
+            Storage::disk('oss')->delete($path);
 
-        return null;
+            return $webpPath;
+        } catch (\Exception $e) {
+            \Log::error('WebP 转换失败: ' . $e->getMessage());
+            return null;
+        }
     }
 
     /**
