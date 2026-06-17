@@ -32,6 +32,11 @@ Route::middleware('auth.api')->group(function () {
         ->where('path', '.*')
         ->name('files.preview');
 
+    // Office 文件预览（认证用户可访问）
+    Route::get('/files/preview-office/{path}', [FileServeController::class, 'previewOffice'])
+        ->where('path', '.*')
+        ->name('files.preview-office');
+
     // 学员路由（需要 active 状态）
     Route::middleware('student.active')->group(function () {
         // 分类（简化版）
