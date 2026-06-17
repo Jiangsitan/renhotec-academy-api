@@ -12,6 +12,9 @@ class HomepageController extends Controller
     {
         $categories = Category::whereNull('parent_id')
             ->orderBy('sort_order')
+            ->with(['children' => function ($query) {
+                $query->orderBy('sort_order');
+            }])
             ->get()
             ->map(function ($category) {
                 $series = $category->series()
@@ -27,10 +30,33 @@ class HomepageController extends Controller
                         'videos_count' => $s->videos_count,
                     ]);
 
+                // 加载子分类的系列
+                $children = $category->children->map(function ($child) {
+                    $childSeries = $child->series()
+                        ->where('status', 'published')
+                        ->withCount('publishedCourses as videos_count')
+                        ->orderBy('sort_order')
+                        ->get()
+                        ->map(fn($s) => [
+                            'id' => $s->id,
+                            'name' => $s->name,
+                            'description' => $s->description,
+                            'cover_image' => $s->cover_image,
+                            'videos_count' => $s->videos_count,
+                        ]);
+
+                    return [
+                        'id' => $child->id,
+                        'name' => $child->name,
+                        'series' => $childSeries,
+                    ];
+                });
+
                 return [
                     'id' => $category->id,
                     'name' => $category->name,
                     'series' => $series,
+                    'children' => $children,
                 ];
             });
 
