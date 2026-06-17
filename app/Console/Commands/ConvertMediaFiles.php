@@ -11,11 +11,20 @@ class ConvertMediaFiles extends Command
     protected $signature = 'media:convert {--type=all : 图片(image)、视频(video)或全部(all)}';
     protected $description = '批量转换现有图片和视频文件（图片转 WebP，视频转 WebM）';
 
+    private string $prefix;
+
+    public function __construct()
+    {
+        parent::__construct();
+        $this->prefix = env('OSS_PREFIX', 'academy/dev');
+    }
+
     public function handle(): int
     {
         $type = $this->option('type');
 
         $this->info("开始批量转换媒体文件 (类型: {$type})...");
+        $this->info("OSS 前缀: {$this->prefix}");
 
         if ($type === 'all' || $type === 'image') {
             $this->convertImages();
@@ -42,8 +51,8 @@ class ConvertMediaFiles extends Command
         $failed = 0;
 
         foreach ($imageExtensions as $ext) {
-            $files = $disk->allFiles("documents/{$ext}");
-            $files = array_merge($files, $disk->allFiles("videos/{$ext}"));
+            $files = $disk->allFiles("{$this->prefix}/documents/{$ext}");
+            $files = array_merge($files, $disk->allFiles("{$this->prefix}/videos/{$ext}"));
 
             foreach ($files as $file) {
                 try {
@@ -103,7 +112,7 @@ class ConvertMediaFiles extends Command
         $failed = 0;
 
         foreach ($videoExtensions as $ext) {
-            $files = $disk->allFiles("videos/{$ext}");
+            $files = $disk->allFiles("{$this->prefix}/videos/{$ext}");
 
             foreach ($files as $file) {
                 try {
