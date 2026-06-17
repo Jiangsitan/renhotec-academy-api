@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Helpers\OssHelper;
 use App\Services\FileConvertService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -62,6 +64,39 @@ class FileServeController extends Controller
         return new StreamedResponse(function () use ($disk, $path) {
             echo $disk->get($path);
         }, 200, $headers);
+    }
+
+    /**
+     * Office 文件预览（DOCX、PPTX、XLSX）
+     * 使用 Microsoft Office Online 预览
+     */
+    public function previewOffice(Request $request, string $path): JsonResponse
+    {
+        $disk = Storage::disk('oss');
+
+        if (!$disk->exists($path)) {
+            return response()->json(['message' => '文件不存在'], 404);
+        }
+
+        $fileSize = $disk->size($path);
+        $maxSize = 25 * 1024 * 1024; // 25MB
+
+        if ($fileSize > $maxSize) {
+            return response()->json([
+                'data' => [
+                    'message' => '文件过大（超过25MB），无法在线预览',
+                ],
+            ]);
+        }
+
+        $fileUrl = OssHelper::url($path);
+        $previewUrl = 'https://view.officeapps.live.com/op/embed.aspx?src=' . urlencode($fileUrl);
+
+        return response()->json([
+            'data' => [
+                'preview_url' => $previewUrl,
+            ],
+        ]);
     }
 
     /**
