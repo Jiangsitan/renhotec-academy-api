@@ -211,7 +211,7 @@ class FileUploadController extends Controller
     }
 
     /**
-     * 合并分片并完成上传
+     * 合并分片并完成上传（异步处理）
      */
     public function uploadComplete(Request $request): JsonResponse
     {
@@ -243,41 +243,16 @@ class FileUploadController extends Controller
         $type = $meta['type'] ?? 'document';
         $finalPath = OssHelper::path($type, $fileName);
 
-        // 流式合并分片到临时文件，避免内存溢出
-        $tempFile = tempnam(sys_get_temp_dir(), 'upload_');
-        $handle = fopen($tempFile, 'w');
-        for ($i = 0; $i < $meta['total_chunks']; $i++) {
-            $chunkPath = "{$chunkDir}/chunk_{$i}";
-            if (Storage::disk('local')->exists($chunkPath)) {
-                $chunkStream = Storage::disk('local')->readStream($chunkPath);
-                stream_copy_to_stream($chunkStream, $handle);
-                fclose($chunkStream);
-            }
-        }
-        fclose($handle);
+        // 异步处理合并和上传
+        \App\Jobs\MergeUploadChunks::dispatch($uploadId, $finalPath, $meta);
 
-        // 上传到 OSS
-        $fileContent = file_get_contents($tempFile);
-        Storage::disk('oss')->put($finalPath, $fileContent);
-        unlink($tempFile);
-
-        // 清理临时分片
-        Storage::disk('local')->deleteDirectory($chunkDir);
-
-        // 如果是 PPT/PPTX，自动转换为 PDF
-        $previewPath = null;
-        if (FileConvertService::needsConversion($meta['file_name'])) {
-            $previewPath = FileConvertService::convertToPdf($finalPath);
-        }
-
+        // 立即返回
         return response()->json([
             'data' => [
-                'url' => OssHelper::url($finalPath),
                 'path' => $finalPath,
                 'file_name' => $meta['file_name'],
                 'file_size' => $meta['file_size'],
-                'preview_path' => $previewPath,
-                'preview_url' => $previewPath ? OssHelper::url($previewPath) : null,
+                'status' => 'processing',
             ],
         ]);
     }
