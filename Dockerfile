@@ -45,6 +45,9 @@ RUN composer install --optimize-autoloader --no-dev --no-scripts
 # 复制项目文件
 COPY . .
 
+# 复制 PHP 配置到正确位置
+COPY php.ini /usr/local/etc/php/conf.d/custom.ini
+
 # 复制 supervisor 配置
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
