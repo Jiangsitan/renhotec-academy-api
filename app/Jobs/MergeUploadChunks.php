@@ -65,6 +65,7 @@ class MergeUploadChunks implements ShouldQueue
             }
 
             // 如果是视频，触发异步转换为 WebM
+            // 注意：转换完成后会自动删除原文件并更新数据库路径
             $extension = strtolower(pathinfo($this->meta['file_name'], PATHINFO_EXTENSION));
             $videoExtensions = ['mp4', 'avi', 'mov', 'mkv'];
             if (in_array($extension, $videoExtensions)) {

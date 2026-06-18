@@ -71,6 +71,7 @@ class FileUploadController extends Controller
         }
 
         // 如果是视频，触发异步转换为 WebM
+        // 注意：转换完成后会自动删除原文件并更新数据库路径
         if (str_starts_with($file->getMimeType(), 'video/') && $file->getMimeType() !== 'video/webm') {
             \App\Jobs\ProcessVideoConversion::dispatch($path, $file->getClientOriginalName());
         }
