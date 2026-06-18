@@ -2,6 +2,8 @@
 
 namespace App\Jobs;
 
+use App\Models\Course;
+use App\Models\Attachment;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -53,8 +55,11 @@ class ProcessVideoConversion implements ShouldQueue
             $webmContent = file_get_contents($tempOutput);
             Storage::disk('oss')->put($webmPath, $webmContent);
 
-            // 删除原文件
+            // 删除原 MP4 文件
             Storage::disk('oss')->delete($this->path);
+
+            // 更新数据库中的路径为 WebM 路径
+            $this->updateDatabasePath($this->path, $webmPath);
 
             // 清理临时文件
             @unlink($tempInput);
@@ -66,5 +71,26 @@ class ProcessVideoConversion implements ShouldQueue
             Log::error("视频转换失败: {$this->fileName} - " . $e->getMessage());
             throw $e;
         }
+    }
+
+    /**
+     * 更新数据库中的视频路径
+     */
+    private function updateDatabasePath(string $oldPath, string $newPath): void
+    {
+        // 更新课程表中的 content_url
+        $courseUpdated = Course::where('content_url', $oldPath)
+            ->update(['content_url' => $newPath]);
+
+        // 更新附件表中的 file_path（如果有）
+        $attachmentUpdated = Attachment::where('file_path', $oldPath)
+            ->update(['file_path' => $newPath]);
+
+        Log::info("数据库路径已更新", [
+            'old_path' => $oldPath,
+            'new_path' => $newPath,
+            'courses_updated' => $courseUpdated,
+            'attachments_updated' => $attachmentUpdated,
+        ]);
     }
 }
