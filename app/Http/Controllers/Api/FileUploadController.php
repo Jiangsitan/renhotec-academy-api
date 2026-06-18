@@ -76,14 +76,28 @@ class FileUploadController extends Controller
             \App\Jobs\ProcessVideoConversion::dispatch($path, $file->getClientOriginalName());
         }
 
-        // 如果是 PPT/PPTX，自动转换为 PDF 并删除原文件
+        // 如果是 PPT/PPTX，自动转换为 WebP 图片序列并删除原文件
+        $contentType = 'pdf';
+        $images = null;
         if (FileConvertService::needsConversion($file->getClientOriginalName())) {
-            $pdfPath = FileConvertService::convertToPdf($path);
-            if ($pdfPath) {
+            $webpImages = FileConvertService::pptToWebpImages($path);
+            if ($webpImages) {
                 // 删除原 PPT 文件
                 Storage::disk('oss')->delete($path);
-                // 更新路径为 PDF 路径
-                $path = $pdfPath;
+                // 更新内容类型和图片路径
+                $contentType = 'images';
+                $images = $webpImages;
+                // 更新路径为第一张图片路径
+                $path = $webpImages[0];
+            } else {
+                // 如果 WebP 转换失败，回退到 PDF 转换
+                $pdfPath = FileConvertService::convertToPdf($path);
+                if ($pdfPath) {
+                    // 删除原 PPT 文件
+                    Storage::disk('oss')->delete($path);
+                    // 更新路径为 PDF 路径
+                    $path = $pdfPath;
+                }
             }
         }
 
@@ -94,6 +108,8 @@ class FileUploadController extends Controller
                 'file_name' => $file->getClientOriginalName(),
                 'file_size' => $file->getSize(),
                 'mime_type' => $file->getMimeType(),
+                'content_type' => $contentType,
+                'images' => $images,
             ],
         ]);
     }
