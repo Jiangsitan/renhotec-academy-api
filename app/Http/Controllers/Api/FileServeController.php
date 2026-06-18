@@ -37,13 +37,13 @@ class FileServeController extends Controller
             }
         }
 
-        // 对于 PDF，压缩后返回（提高加载速度）
-        if ($ext === 'pdf') {
-            $compressedPath = $this->compressPdf($path);
-            if ($compressedPath) {
-                $path = $compressedPath;
-            }
-        }
+        // 临时禁用 PDF 压缩（调试用）
+        // if ($ext === 'pdf') {
+        //     $compressedPath = $this->compressPdf($path);
+        //     if ($compressedPath) {
+        //         $path = $compressedPath;
+        //     }
+        // }
 
         $mimeType = $disk->mimeType($path);
         $fileSize = $disk->size($path);

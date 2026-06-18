@@ -84,13 +84,13 @@ class FileConvertService
             file_put_contents($registryFile, self::getRegistryConfig());
         }
 
-        // 执行转换
+        // 执行转换（使用更高质量的参数）
         $escapedSource = escapeshellarg($localSourcePath);
         $escapedOutputDir = escapeshellarg($tempDir);
         $encodedProfileDir = str_replace(' ', '%20', $profileDir);
         
         $homeDir = $tempDir;
-        $command = "HOME=" . escapeshellarg($homeDir) . " SAL_USE_VCLPLUGIN=svp soffice '-env:UserInstallationURL=file://{$encodedProfileDir}' --headless --convert-to pdf --outdir {$escapedOutputDir} {$escapedSource} 2>&1";
+        $command = "HOME=" . escapeshellarg($homeDir) . " SAL_USE_VCLPLUGIN=svp soffice '-env:UserInstallationURL=file://{$encodedProfileDir}' --headless --convert-to pdf:writer_pdf_Export --outdir {$escapedOutputDir} {$escapedSource} 2>&1";
         
         $output = [];
         $returnCode = 0;
