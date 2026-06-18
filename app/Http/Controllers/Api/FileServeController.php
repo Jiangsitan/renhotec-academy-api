@@ -27,8 +27,9 @@ class FileServeController extends Controller
 
         $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
 
-        // 对于 PPT/PPTX，返回转换后的 PDF
-        if (in_array($ext, ['ppt', 'pptx'])) {
+        // 对于 Office 文件，返回转换后的 PDF
+        $officeExtensions = ['docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls', 'odt', 'ods', 'odp'];
+        if (in_array($ext, $officeExtensions)) {
             $previewPath = FileConvertService::getPreviewPath($path);
             if ($previewPath !== $path && $disk->exists($previewPath)) {
                 $path = $previewPath;
@@ -68,7 +69,7 @@ class FileServeController extends Controller
 
     /**
      * Office 文件预览（DOCX、PPTX、XLSX）
-     * 使用 Microsoft Office Online 预览
+     * 重定向到 PDF 预览
      */
     public function previewOffice(Request $request, string $path): JsonResponse
     {
@@ -78,24 +79,40 @@ class FileServeController extends Controller
             return response()->json(['message' => '文件不存在'], 404);
         }
 
-        $fileSize = $disk->size($path);
-        $maxSize = 25 * 1024 * 1024; // 25MB
+        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $officeExtensions = ['docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls', 'odt', 'ods', 'odp'];
 
-        if ($fileSize > $maxSize) {
+        if (!in_array($ext, $officeExtensions)) {
+            return response()->json(['message' => '不支持的文件类型'], 400);
+        }
+
+        // 检查是否有对应的 PDF 文件
+        $pdfPath = str_replace('.' . $ext, '.pdf', $path);
+
+        if ($disk->exists($pdfPath)) {
+            // 重定向到 PDF 预览
             return response()->json([
                 'data' => [
-                    'message' => '文件过大（超过25MB），无法在线预览',
-                ],
+                    'redirect' => route('files.preview', ['path' => $pdfPath]),
+                ]
             ]);
         }
 
-        $fileUrl = OssHelper::url($path);
-        $previewUrl = 'https://view.officeapps.live.com/op/embed.aspx?src=' . urlencode($fileUrl);
+        // 尝试即时转换
+        $convertedPath = FileConvertService::convertToPdf($path);
+        if ($convertedPath && $disk->exists($convertedPath)) {
+            return response()->json([
+                'data' => [
+                    'redirect' => route('files.preview', ['path' => $convertedPath]),
+                ]
+            ]);
+        }
 
         return response()->json([
             'data' => [
-                'preview_url' => $previewUrl,
-            ],
+                'error' => true,
+                'message' => '文档转换中，请稍后再试',
+            ]
         ]);
     }
 
