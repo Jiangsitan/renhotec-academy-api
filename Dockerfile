@@ -29,15 +29,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-wqy-zenhei \
     fonts-wqy-microhei \
     fonts-noto-cjk \
-    libmagickwand-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # 4. 编译并安装 PHP 核心扩展（去掉了已内置的 mbstring 和 xml）
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
-    && docker-php-ext-install pdo_mysql bcmath gd intl zip opcache \
+    && docker-php-ext-install pdo_mysql bcmath gd intl zip opcache
+
+# 4.1 安装 Imagick 扩展（单独步骤，便于调试）
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libmagickwand-dev \
     && pecl install imagick \
-    && docker-php-ext-enable imagick
+    && docker-php-ext-enable imagick \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # 5. 引入 Composer 并配置国内全量镜像加速
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
