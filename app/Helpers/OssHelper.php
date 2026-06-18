@@ -19,6 +19,12 @@ class OssHelper
     {
         $prefix = self::getPrefix();
         $typeDir = self::getTypeDirectory($type);
+
+        // 对于视频和文档，添加 courses/ 子目录
+        if (in_array($type, ['video', 'document'])) {
+            return $prefix . '/' . $typeDir . '/courses/' . date('Y/m') . '/' . $fileName;
+        }
+
         return $prefix . '/' . $typeDir . '/' . date('Y/m') . '/' . $fileName;
     }
 
