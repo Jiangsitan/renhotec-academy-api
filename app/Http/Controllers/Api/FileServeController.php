@@ -27,8 +27,8 @@ class FileServeController extends Controller
 
         $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
 
-        // 对于 Office 文件，返回转换后的 PDF
-        $officeExtensions = ['docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls', 'odt', 'ods', 'odp'];
+        // 对于 Office 文件，返回转换后的 PDF（PPT 除外，PPT 使用图片序列预览）
+        $officeExtensions = ['docx', 'doc', 'xlsx', 'xls', 'odt', 'ods', 'odp'];
         if (in_array($ext, $officeExtensions)) {
             $previewPath = FileConvertService::getPreviewPath($path);
             if ($previewPath !== $path && $disk->exists($previewPath)) {
