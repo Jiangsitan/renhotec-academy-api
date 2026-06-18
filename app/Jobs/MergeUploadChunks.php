@@ -58,6 +58,13 @@ class MergeUploadChunks implements ShouldQueue
                 FileConvertService::convertToPdf($this->finalPath);
             }
 
+            // 如果是视频，触发异步转换为 WebM
+            $extension = strtolower(pathinfo($this->meta['file_name'], PATHINFO_EXTENSION));
+            $videoExtensions = ['mp4', 'avi', 'mov', 'mkv'];
+            if (in_array($extension, $videoExtensions)) {
+                \App\Jobs\ProcessVideoConversion::dispatch($this->finalPath, $this->meta['file_name']);
+            }
+
             Log::info("分片合并完成: {$this->uploadId} -> {$this->finalPath}");
 
         } catch (\Exception $e) {
