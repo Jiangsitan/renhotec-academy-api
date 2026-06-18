@@ -53,9 +53,15 @@ class MergeUploadChunks implements ShouldQueue
             // 清理临时分片
             Storage::disk('local')->deleteDirectory($chunkDir);
 
-            // 如果是 PPT/PPTX，自动转换为 PDF
+            // 如果是 PPT/PPTX，自动转换为 PDF 并删除原文件
             if (FileConvertService::needsConversion($this->meta['file_name'])) {
-                FileConvertService::convertToPdf($this->finalPath);
+                $pdfPath = FileConvertService::convertToPdf($this->finalPath);
+                if ($pdfPath) {
+                    // 删除原 PPT 文件
+                    Storage::disk('oss')->delete($this->finalPath);
+                    // 更新路径为 PDF 路径
+                    $this->finalPath = $pdfPath;
+                }
             }
 
             // 如果是视频，触发异步转换为 WebM

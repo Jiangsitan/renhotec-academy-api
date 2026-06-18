@@ -75,10 +75,15 @@ class FileUploadController extends Controller
             \App\Jobs\ProcessVideoConversion::dispatch($path, $file->getClientOriginalName());
         }
 
-        // 如果是 PPT/PPTX，自动转换为 PDF
-        $previewPath = null;
+        // 如果是 PPT/PPTX，自动转换为 PDF 并删除原文件
         if (FileConvertService::needsConversion($file->getClientOriginalName())) {
-            $previewPath = FileConvertService::convertToPdf($path);
+            $pdfPath = FileConvertService::convertToPdf($path);
+            if ($pdfPath) {
+                // 删除原 PPT 文件
+                Storage::disk('oss')->delete($path);
+                // 更新路径为 PDF 路径
+                $path = $pdfPath;
+            }
         }
 
         return response()->json([
@@ -88,8 +93,6 @@ class FileUploadController extends Controller
                 'file_name' => $file->getClientOriginalName(),
                 'file_size' => $file->getSize(),
                 'mime_type' => $file->getMimeType(),
-                'preview_path' => $previewPath,
-                'preview_url' => $previewPath ? OssHelper::url($previewPath) : null,
             ],
         ]);
     }
