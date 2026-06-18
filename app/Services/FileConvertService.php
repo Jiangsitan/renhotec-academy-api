@@ -203,4 +203,66 @@ class FileConvertService
   </oor:item>
 </oor:items>';
     }
+
+    /**
+     * 将 PPT 转换为 WebP 图片序列
+     *
+     * @param string $sourcePath OSS 上的文件路径
+     * @return array|null 图片路径数组，失败返回 null
+     */
+    public static function pptToWebpImages(string $sourcePath): ?array
+    {
+        // 1. 使用 LibreOffice 将 PPT 转换为 PDF
+        $pdfPath = self::convertToPdf($sourcePath);
+        if (!$pdfPath) {
+            return null;
+        }
+
+        // 2. 使用 Imagick 将 PDF 转换为 WebP 图片
+        $images = self::pdfToWebpImages($pdfPath);
+
+        // 3. 删除临时 PDF 文件
+        Storage::disk('oss')->delete($pdfPath);
+
+        return $images;
+    }
+
+    /**
+     * 将 PDF 转换为 WebP 图片序列
+     *
+     * @param string $pdfPath OSS 上的 PDF 文件路径
+     * @return array|null 图片路径数组，失败返回 null
+     */
+    protected static function pdfToWebpImages(string $pdfPath): ?array
+    {
+        try {
+            $disk = Storage::disk('oss');
+            $tempPdf = tempnam(sys_get_temp_dir(), 'pdf_') . '.pdf';
+            $pdfContent = $disk->get($pdfPath);
+            file_put_contents($tempPdf, $pdfContent);
+
+            $images = [];
+            $pdf = new \Imagick($tempPdf);
+            $pdf->setResolution(150, 150);
+
+            for ($i = 0; $i < $pdf->getNumberImages(); $i++) {
+                $pdf->setIteratorIndex($i);
+                $pdf->setImageFormat('webp');
+                $pdf->setImageCompressionQuality(85);
+
+                $imageContent = $pdf->getImageBlob();
+                $imagePath = str_replace('.pdf', "_page_{$i}.webp", $pdfPath);
+
+                $disk->put($imagePath, $imageContent);
+                $images[] = $imagePath;
+            }
+
+            @unlink($tempPdf);
+            return $images;
+
+        } catch (\Exception $e) {
+            \Log::error('PDF to WebP images conversion failed: ' . $e->getMessage());
+            return null;
+        }
+    }
 }
