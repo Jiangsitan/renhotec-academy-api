@@ -228,7 +228,7 @@ class FileConvertService
     }
 
     /**
-     * 将 PDF 转换为 WebP 图片序列
+     * 将 PDF 转换为 WebP 图片序列（使用 GD 库）
      *
      * @param string $pdfPath OSS 上的 PDF 文件路径
      * @return array|null 图片路径数组，失败返回 null
@@ -242,24 +242,38 @@ class FileConvertService
             file_put_contents($tempPdf, $pdfContent);
 
             $images = [];
-            $pdf = new \Imagick($tempPdf);
-            $pdf->setResolution(150, 150);
-
-            for ($i = 0; $i < $pdf->getNumberImages(); $i++) {
-                $pdf->setIteratorIndex($i);
-                $pdf->setImageFormat('webp');
-                $pdf->setImageCompressionQuality(85);
-
-                $imageContent = $pdf->getImageBlob();
-                $imagePath = str_replace('.pdf', "_page_{$i}.webp", $pdfPath);
-
-                $disk->put($imagePath, $imageContent);
-                $images[] = $imagePath;
+            
+            // 使用 Ghostscript 将 PDF 转换为 PNG
+            $tempDir = sys_get_temp_dir();
+            $command = "gs -dNOPAUSE -dBATCH -sDEVICE=png16m -r150 -sOutputFile={$tempDir}/page_%d.png {$tempPdf} 2>&1";
+            exec($command, $output, $returnCode);
+            
+            if ($returnCode === 0) {
+                // 查找生成的 PNG 文件
+                $pngFiles = glob($tempDir . '/page_*.png');
+                sort($pngFiles);
+                
+                foreach ($pngFiles as $index => $pngFile) {
+                    // 将 PNG 转换为 WebP
+                    $image = imagecreatefrompng($pngFile);
+                    ob_start();
+                    imagewebp($image, null, 85);
+                    $webpData = ob_get_clean();
+                    imagedestroy($image);
+                    
+                    // 上传到 OSS
+                    $imagePath = str_replace('.pdf', "_page_{$index}.webp", $pdfPath);
+                    $disk->put($imagePath, $webpData);
+                    $images[] = $imagePath;
+                    
+                    // 删除临时 PNG 文件
+                    @unlink($pngFile);
+                }
             }
-
+            
             @unlink($tempPdf);
             return $images;
-
+            
         } catch (\Exception $e) {
             \Log::error('PDF to WebP images conversion failed: ' . $e->getMessage());
             return null;
