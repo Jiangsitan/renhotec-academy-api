@@ -18,6 +18,8 @@ class Course extends Model
         'type',
         'content_source',
         'content_url',
+        'content_type',
+        'images',
         'cover_image',
         'file_name',
         'file_size',
@@ -33,6 +35,8 @@ class Course extends Model
     {
         return [
             'type' => CourseType::class,
+            'content_type' => 'string',
+            'images' => 'array',
             'min_read_time' => 'integer',
             'duration' => 'integer',
         ];
