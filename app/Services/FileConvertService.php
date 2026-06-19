@@ -212,17 +212,30 @@ class FileConvertService
      */
     public static function pptToWebpImages(string $sourcePath): ?array
     {
+        Log::info('开始转换 PPT 为 WebP 图片', ['source' => $sourcePath]);
+        
         // 1. 使用 LibreOffice 将 PPT 转换为 PDF
         $pdfPath = self::convertToPdf($sourcePath);
         if (!$pdfPath) {
+            Log::error('PPT 转 PDF 失败', ['source' => $sourcePath]);
             return null;
         }
 
-        // 2. 使用 Imagick 将 PDF 转换为 WebP 图片
+        // 2. 使用 GD 库将 PDF 转换为 WebP 图片
         $images = self::pdfToWebpImages($pdfPath);
+        if (!$images || empty($images)) {
+            Log::error('PDF 转 WebP 失败', ['pdf' => $pdfPath]);
+            return null;
+        }
 
         // 3. 删除临时 PDF 文件
         Storage::disk('oss')->delete($pdfPath);
+
+        Log::info('PPT 转 WebP 完成', [
+            'source' => $sourcePath,
+            'images' => $images,
+            'count' => count($images),
+        ]);
 
         return $images;
     }
