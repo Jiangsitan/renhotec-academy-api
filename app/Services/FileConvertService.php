@@ -251,7 +251,13 @@ class FileConvertService
             if ($returnCode === 0) {
                 // 查找生成的 PNG 文件
                 $pngFiles = glob($tempDir . '/page_*.png');
-                sort($pngFiles);
+                
+                // 按页码数字排序（避免字符串排序导致 page_10 排在 page_2 前面）
+                usort($pngFiles, function ($a, $b) {
+                    preg_match('/page_(\d+)\.png/', basename($a), $matchesA);
+                    preg_match('/page_(\d+)\.png/', basename($b), $matchesB);
+                    return intval($matchesA[1] ?? 0) - intval($matchesB[1] ?? 0);
+                });
                 
                 foreach ($pngFiles as $index => $pngFile) {
                     // 将 PNG 转换为 WebP
