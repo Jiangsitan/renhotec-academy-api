@@ -54,6 +54,32 @@ services:
       - storage_data:/app/storage
       - ./public/storage:/app/public/storage
 
+  queue:
+    image: academy-api:v1
+    container_name: renhotec-queue
+    restart: always
+    command: php artisan queue:work --sleep=3 --tries=3 --max-time=3600
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - APP_URL=${APP_URL:-https://learn.renhotec.cn}
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=renhotec_academy
+      - DB_USERNAME=${DB_USERNAME:-renhotec}
+      - DB_PASSWORD=${DB_PASSWORD:-renhotec123}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-Rh_2026}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - storage_data:/app/storage
+      - ./public/storage:/app/public/storage
+
   nginx:
     image: nginx:alpine
     container_name: renhotec-nginx
