@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Helpers\OssHelper;
 use App\Jobs\ProcessFileConversion;
+use App\Jobs\ProcessVideoConversion;
 use App\Models\Course;
 use App\Services\FileConvertService;
 use Illuminate\Http\JsonResponse;
