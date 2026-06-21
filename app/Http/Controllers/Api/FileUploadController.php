@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Helpers\OssHelper;
+use App\Jobs\ProcessFileConversion;
+use App\Models\Course;
 use App\Services\FileConvertService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -62,7 +64,7 @@ class FileUploadController extends Controller
         $fileContent = file_get_contents($file->getRealPath());
         Storage::disk('oss')->put($path, $fileContent);
 
-        // 如果是图片，自动转换为 WEBP
+        // 如果是图片，自动转换为 WEBP（同步，耗时较短）
         if (str_starts_with($file->getMimeType(), 'image/') && $file->getMimeType() !== 'image/webp') {
             $webpPath = $this->convertToWebp($path);
             if ($webpPath) {
@@ -71,34 +73,21 @@ class FileUploadController extends Controller
         }
 
         // 如果是视频，触发异步转换为 WebM
-        // 注意：转换完成后会自动删除原文件并更新数据库路径
         if (str_starts_with($file->getMimeType(), 'video/') && $file->getMimeType() !== 'video/webm') {
-            \App\Jobs\ProcessVideoConversion::dispatch($path, $file->getClientOriginalName());
+            ProcessVideoConversion::dispatch($path, $file->getClientOriginalName());
         }
 
-        // 如果是 PPT/PPTX，自动转换为 WebP 图片序列并删除原文件
+        // 如果是 PPT/PPTX，异步转换（避免同步阻塞导致 504 超时）
         $contentType = 'pdf';
         $images = null;
-        if (FileConvertService::needsConversion($file->getClientOriginalName())) {
-            $webpImages = FileConvertService::pptToWebpImages($path);
-            if ($webpImages) {
-                // 删除原 PPT 文件
-                Storage::disk('oss')->delete($path);
-                // 更新内容类型和图片路径
-                $contentType = 'images';
-                $images = $webpImages;
-                // 更新路径为第一张图片路径
-                $path = $webpImages[0];
-            } else {
-                // 如果 WebP 转换失败，回退到 PDF 转换
-                $pdfPath = FileConvertService::convertToPdf($path);
-                if ($pdfPath) {
-                    // 删除原 PPT 文件
-                    Storage::disk('oss')->delete($path);
-                    // 更新路径为 PDF 路径
-                    $path = $pdfPath;
-                }
-            }
+        $needsConversion = FileConvertService::needsConversion($file->getClientOriginalName());
+
+        if ($needsConversion) {
+            // 异步处理转换，立即返回
+            ProcessFileConversion::dispatch($path, $file->getClientOriginalName());
+            // content_type 和 images 设为 null，表示转换中
+            $contentType = null;
+            $images = null;
         }
 
         return response()->json([
@@ -110,6 +99,7 @@ class FileUploadController extends Controller
                 'mime_type' => $file->getMimeType(),
                 'content_type' => $contentType,
                 'images' => $images,
+                'converting' => $needsConversion,
             ],
         ]);
     }
@@ -300,6 +290,44 @@ class FileUploadController extends Controller
                 'total' => $meta['total_chunks'],
                 'progress' => round(($uploadedCount / $meta['total_chunks']) * 100, 1),
                 'completed' => $uploadedCount >= $meta['total_chunks'],
+            ],
+        ]);
+    }
+
+    /**
+     * 查询文件转换状态
+     */
+    public function conversionStatus(Request $request): JsonResponse
+    {
+        $request->validate([
+            'path' => 'required|string',
+        ]);
+
+        $path = $request->input('path');
+
+        // 查找包含此路径的课程（可能是原路径或转换后的路径）
+        $course = Course::where('content_url', $path)
+            ->orWhere('content_url', 'like', str_replace('.', '_page_%.', $path))
+            ->first();
+
+        if (!$course) {
+            return response()->json([
+                'data' => [
+                    'converted' => false,
+                    'content_type' => null,
+                    'images' => null,
+                ],
+            ]);
+        }
+
+        $converted = !is_null($course->content_type) && $course->content_url !== $path;
+
+        return response()->json([
+            'data' => [
+                'converted' => $converted,
+                'content_type' => $course->content_type,
+                'images' => $course->images,
+                'content_url' => $course->content_url,
             ],
         ]);
     }
