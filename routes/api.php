@@ -182,5 +182,6 @@ Route::middleware('auth.api')->group(function () {
         Route::post('/upload/chunk', [FileUploadController::class, 'uploadChunk']);
         Route::post('/upload/complete', [FileUploadController::class, 'uploadComplete']);
         Route::get('/upload/{uploadId}/status', [FileUploadController::class, 'uploadStatus']);
+        Route::get('/upload/conversion-status', [FileUploadController::class, 'conversionStatus']);
     });
 });
