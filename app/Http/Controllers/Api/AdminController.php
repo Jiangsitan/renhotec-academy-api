@@ -392,8 +392,22 @@ class AdminController extends Controller
     {
         $validated = $request->validate([
             'name' => 'sometimes|string|max:100',
+            'parent_id' => 'sometimes|nullable|exists:categories,id',
             'sort_order' => 'sometimes|integer|min:0',
         ]);
+
+        // 防止将分类设为自己的子分类
+        if (isset($validated['parent_id']) && $validated['parent_id'] == $category->id) {
+            return response()->json(['message' => '不能将分类设为自己的子分类'], 422);
+        }
+
+        // 防止循环引用（不能将分类设为自己子分类的子分类）
+        if (isset($validated['parent_id']) && $validated['parent_id']) {
+            $children = Category::where('parent_id', $category->id)->pluck('id')->toArray();
+            if (in_array($validated['parent_id'], $children)) {
+                return response()->json(['message' => '不能将分类设为自己子分类的子分类'], 422);
+            }
+        }
 
         $category->update($validated);
 
