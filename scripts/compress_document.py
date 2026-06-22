@@ -3,7 +3,6 @@
 文档压缩工具
 支持：PPT/PPTX → PDF 转换，PDF 压缩
 依赖：PyMuPDF (fitz)
-注意：通过 Docker exec 调用宿主机的 LibreOffice
 """
 
 import subprocess
@@ -19,9 +18,25 @@ except ImportError:
     sys.exit(1)
 
 
+def find_soffice() -> str:
+    """查找 LibreOffice 可执行文件"""
+    # 优先使用 which 查找
+    for name in ["soffice", "libreoffice"]:
+        path = shutil.which(name)
+        if path:
+            return path
+    
+    # 尝试常见路径
+    for name in ["/usr/bin/soffice", "/usr/lib64/libreoffice/program/soffice"]:
+        if Path(name).exists():
+            return name
+    
+    return None
+
+
 def ppt_to_pdf(pptx_path: str, output_dir: str) -> Path:
     """
-    使用 LibreOffice 将 PPT 转换为 PDF（通过宿主机网络调用）
+    使用 LibreOffice 将 PPT 转换为 PDF
     
     Args:
         pptx_path: PPT 文件路径
@@ -30,12 +45,16 @@ def ppt_to_pdf(pptx_path: str, output_dir: str) -> Path:
     Returns:
         生成的 PDF 文件路径
     """
+    soffice = find_soffice()
+    if not soffice:
+        print("ERROR: 未找到 LibreOffice，请确保已安装", file=sys.stderr)
+        sys.exit(1)
+
     pdf_file = Path(output_dir) / (Path(pptx_path).stem + ".pdf")
 
     try:
-        # 使用正确的 soffice 路径（通过挂载的宿主机 LibreOffice）
         cmd = [
-            '/usr/lib64/libreoffice/program/soffice', '--headless', '--norestore', '--nologo',
+            soffice, '--headless', '--norestore', '--nologo',
             '--convert-to', 'pdf', '--outdir', output_dir, pptx_path
         ]
         
