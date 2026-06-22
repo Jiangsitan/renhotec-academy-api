@@ -3,7 +3,7 @@
 文档压缩工具
 支持：PPT/PPTX → PDF 转换，PDF 压缩
 依赖：PyMuPDF (fitz)
-注意：LibreOffice 安装在宿主机上，通过网络调用
+注意：通过 Docker exec 调用宿主机的 LibreOffice
 """
 
 import subprocess
@@ -19,25 +19,9 @@ except ImportError:
     sys.exit(1)
 
 
-def find_soffice() -> str:
-    """查找 LibreOffice 可执行文件（宿主机）"""
-    # 优先使用宿主机的 LibreOffice
-    for name in ["/usr/bin/soffice", "/usr/bin/libreoffice"]:
-        if Path(name).exists():
-            return name
-    
-    # 尝试使用 which 查找
-    for name in ["soffice", "libreoffice"]:
-        path = shutil.which(name)
-        if path:
-            return path
-    
-    return None
-
-
 def ppt_to_pdf(pptx_path: str, output_dir: str) -> Path:
     """
-    使用 LibreOffice 将 PPT 转换为 PDF（调用宿主机 LibreOffice）
+    使用 LibreOffice 将 PPT 转换为 PDF（通过 Docker exec 调用宿主机 LibreOffice）
     
     Args:
         pptx_path: PPT 文件路径
@@ -46,22 +30,30 @@ def ppt_to_pdf(pptx_path: str, output_dir: str) -> Path:
     Returns:
         生成的 PDF 文件路径
     """
-    soffice = find_soffice()
-    if not soffice:
-        print("ERROR: 未找到 LibreOffice，请确保宿主机已安装", file=sys.stderr)
-        sys.exit(1)
-
     pdf_file = Path(output_dir) / (Path(pptx_path).stem + ".pdf")
 
     try:
-        # 使用优化参数调用 LibreOffice
-        subprocess.run(
-            [soffice, "--headless", "--norestore", "--nologo", "--convert-to", "pdf", "--outdir", output_dir, pptx_path],
+        # 通过 Docker exec 调用宿主机的 LibreOffice
+        # 使用 host.docker.internal 访问宿主机
+        docker_cmd = [
+            'docker', 'exec', 'renhotec-api',
+            'soffice', '--headless', '--norestore', '--nologo',
+            '--convert-to', 'pdf', '--outdir', output_dir, pptx_path
+        ]
+        
+        print(f"执行命令: {' '.join(docker_cmd)}", file=sys.stderr)
+        
+        result = subprocess.run(
+            docker_cmd,
             check=True,
             timeout=60,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
+            capture_output=True,
+            text=True
         )
+        
+        print(f"LibreOffice 输出: {result.stdout}", file=sys.stderr)
+        if result.stderr:
+            print(f"LibreOffice 错误: {result.stderr}", file=sys.stderr)
         
         if not pdf_file.exists():
             # 尝试查找生成的 PDF
@@ -79,6 +71,8 @@ def ppt_to_pdf(pptx_path: str, output_dir: str) -> Path:
         sys.exit(1)
     except subprocess.CalledProcessError as e:
         print(f"ERROR: PPT 转 PDF 失败: {e}", file=sys.stderr)
+        print(f"stdout: {e.stdout}", file=sys.stderr)
+        print(f"stderr: {e.stderr}", file=sys.stderr)
         sys.exit(1)
 
 
