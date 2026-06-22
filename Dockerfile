@@ -34,8 +34,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# 安装 Python 依赖
-RUN pip3 install --break-system-packages pymupdf==1.24.0 Pillow==10.4.0
+# 安装 Python 依赖（使用预编译 wheel，避免从源码编译）
+RUN pip3 install --break-system-packages \
+    -i https://mirrors.aliyun.com/pypi/simple/ \
+    --trusted-host mirrors.aliyun.com \
+    --only-binary :all: \
+    pymupdf==1.24.0 Pillow==10.4.0
 
 # 4. 编译并安装 PHP 核心扩展（去掉了已内置的 mbstring 和 xml）
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
