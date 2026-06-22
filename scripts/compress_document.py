@@ -2,14 +2,13 @@
 """
 文档压缩工具
 支持：PPT/PPTX → PDF 转换，PDF 压缩
-依赖：PyMuPDF (fitz)
+依赖：PyMuPDF (fitz)、LibreOffice
 """
 
 import subprocess
 import sys
 import argparse
 import shutil
-import os
 from pathlib import Path
 
 try:
@@ -21,17 +20,10 @@ except ImportError:
 
 def find_soffice() -> str:
     """查找 LibreOffice 可执行文件"""
-    # 优先使用 /work 目录下的 LibreOffice
-    for name in ["/work/lib64/libreoffice/program/soffice", "/usr/lib64/libreoffice/program/soffice", "/usr/bin/soffice"]:
-        if Path(name).exists():
-            return name
-    
-    # 尝试使用 which 查找
     for name in ["soffice", "libreoffice"]:
         path = shutil.which(name)
         if path:
             return path
-    
     return None
 
 
