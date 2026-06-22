@@ -2,7 +2,8 @@
 """
 文档压缩工具
 支持：PPT/PPTX → PDF 转换，PDF 压缩
-依赖：LibreOffice (soffice)、PyMuPDF (fitz)
+依赖：PyMuPDF (fitz)
+注意：LibreOffice 安装在宿主机上，通过网络调用
 """
 
 import subprocess
@@ -19,17 +20,24 @@ except ImportError:
 
 
 def find_soffice() -> str:
-    """查找 LibreOffice 可执行文件"""
+    """查找 LibreOffice 可执行文件（宿主机）"""
+    # 优先使用宿主机的 LibreOffice
+    for name in ["/usr/bin/soffice", "/usr/bin/libreoffice"]:
+        if Path(name).exists():
+            return name
+    
+    # 尝试使用 which 查找
     for name in ["soffice", "libreoffice"]:
         path = shutil.which(name)
         if path:
             return path
+    
     return None
 
 
 def ppt_to_pdf(pptx_path: str, output_dir: str) -> Path:
     """
-    使用 LibreOffice 将 PPT 转换为 PDF
+    使用 LibreOffice 将 PPT 转换为 PDF（调用宿主机 LibreOffice）
     
     Args:
         pptx_path: PPT 文件路径
@@ -40,16 +48,17 @@ def ppt_to_pdf(pptx_path: str, output_dir: str) -> Path:
     """
     soffice = find_soffice()
     if not soffice:
-        print("ERROR: 未找到 LibreOffice，请安装后重试", file=sys.stderr)
+        print("ERROR: 未找到 LibreOffice，请确保宿主机已安装", file=sys.stderr)
         sys.exit(1)
 
     pdf_file = Path(output_dir) / (Path(pptx_path).stem + ".pdf")
 
     try:
+        # 使用优化参数调用 LibreOffice
         subprocess.run(
-            [soffice, "--headless", "--convert-to", "pdf", "--outdir", output_dir, pptx_path],
+            [soffice, "--headless", "--norestore", "--nologo", "--convert-to", "pdf", "--outdir", output_dir, pptx_path],
             check=True,
-            timeout=120,
+            timeout=60,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
@@ -111,7 +120,6 @@ def main():
     parser.add_argument("input", help="输入文件路径（PPT/PPTX/PDF）")
     parser.add_argument("output", help="输出文件路径（PDF）")
     parser.add_argument("--quality", type=int, default=85, help="图片质量 1-100（默认85）")
-    parser.add_argument("--keep-original", action="store_true", help="保留原文件")
     
     args = parser.parse_args()
     

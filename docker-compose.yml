@@ -45,6 +45,8 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:-Rh_2026}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       mysql:
         condition: service_healthy
@@ -53,6 +55,7 @@ services:
     volumes:
       - storage_data:/app/storage
       - ./public/storage:/app/public/storage
+      - ./scripts:/app/scripts
 
   queue:
     image: academy-api:v1
@@ -71,6 +74,8 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:-Rh_2026}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       mysql:
         condition: service_healthy
@@ -79,6 +84,7 @@ services:
     volumes:
       - storage_data:/app/storage
       - ./public/storage:/app/public/storage
+      - ./scripts:/app/scripts
 
   nginx:
     image: nginx:alpine
