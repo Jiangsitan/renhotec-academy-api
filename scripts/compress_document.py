@@ -51,9 +51,9 @@ def ppt_to_pdf(pptx_path: str, output_dir: str) -> Path:
         print("ERROR: 未找到 LibreOffice，请确保已安装", file=sys.stderr)
         sys.exit(1)
 
-    # 设置库路径环境变量
-    env = os.environ.copy()
-    env['LD_LIBRARY_PATH'] = '/work/lib64:' + env.get('LD_LIBRARY_PATH', '')
+    # 不设置 LD_LIBRARY_PATH，使用容器自身的系统库
+    # LibreOffice 的图形库（libXinerama 等）在 /work/lib64 下
+    # 系统核心库（glibc 等）使用容器内的
 
     pdf_file = Path(output_dir) / (Path(pptx_path).stem + ".pdf")
 
@@ -70,8 +70,7 @@ def ppt_to_pdf(pptx_path: str, output_dir: str) -> Path:
             check=True,
             timeout=60,
             capture_output=True,
-            text=True,
-            env=env  # 使用自定义环境变量
+            text=True
         )
         
         print(f"LibreOffice 输出: {result.stdout}", file=sys.stderr)
