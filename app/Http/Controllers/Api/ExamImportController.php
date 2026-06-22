@@ -27,10 +27,7 @@ class ExamImportController extends Controller
         ]);
 
         $file = $request->file('file');
-        
-        // 上传到临时目录
-        $tempPath = $file->storeAs('temp/word_import', $file->getClientOriginalName());
-        $fullPath = storage_path('app/' . $tempPath);
+        $fullPath = $file->getPathname(); // 直接使用临时文件路径
 
         try {
             // 解析 Word 文档
@@ -60,8 +57,7 @@ class ExamImportController extends Controller
                 $createdCount++;
             }
 
-            // 清理临时文件
-            Storage::delete($tempPath);
+            // 不需要手动清理临时文件，PHP 会自动清理
 
             return response()->json([
                 'message' => "成功导入 {$createdCount} 道题目",
@@ -73,9 +69,6 @@ class ExamImportController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            // 清理临时文件
-            Storage::delete($tempPath);
-            
             Log::error('Word 导入失败', [
                 'exam_id' => $exam->id,
                 'error' => $e->getMessage(),
@@ -90,46 +83,59 @@ class ExamImportController extends Controller
     /**
      * 下载模板
      */
-    public function downloadTemplate(): JsonResponse
+    public function downloadTemplate()
     {
-        // 返回模板说明
-        return response()->json([
-            'data' => [
-                'format' => 'docx',
-                'structure' => [
-                    'title' => '考试标题',
-                    'sections' => [
-                        [
-                            'name' => '一、基本概况：（10\'）',
-                            'questions' => [
-                                'type' => 'short_answer',
-                                'format' => '1. 题目内容\n答案：答案内容\n分值：2',
-                            ],
-                        ],
-                        [
-                            'name' => '二、产品外观辨别：（50\'）',
-                            'questions' => [
-                                'type' => 'fill_blank',
-                                'format' => '表格格式：图片 | 描述',
-                            ],
-                        ],
-                    ],
-                ],
-                'examples' => [
-                    'single' => [
-                        'content' => '1. 以下哪个是连接器的类型？\nA. M12\nB. USB\nC. HDMI\nD. 以上都是\n答案：D\n分值：2',
-                    ],
-                    'multiple' => [
-                        'content' => '2. 以下哪些是连接器的常见故障？（多选）\nA. 接触不良\nB. 绝缘损坏\nC. 机械磨损\nD. 以上都是\n答案：A,B,C\n分值：3',
-                    ],
-                    'fill_blank' => [
-                        'content' => '3. 连接器由（外壳）、（接触件）和（绝缘体）组成。\n答案：外壳,接触件,绝缘体\n分值：4',
-                    ],
-                    'short_answer' => [
-                        'content' => '4. 请简述连接器选型时需要考虑的主要因素。\n参考答案：选择连接器时需要考虑电气参数、机械参数、环境参数等。\n分值：10',
-                    ],
-                ],
-            ],
-        ]);
+        // 创建 Word 模板
+        $phpWord = new \PhpOffice\PhpWord\PhpWord();
+        $section = $phpWord->addSection();
+        
+        // 添加标题
+        $section->addTitle('考试题目导入模板', 1);
+        $section->addText('请按照以下格式准备题目，然后导入系统。');
+        $section->addTextBreak(1);
+        
+        // 添加单选题示例
+        $section->addTitle('一、单选题', 2);
+        $section->addText('1. 以下哪个是连接器的类型？');
+        $section->addText('A. M12');
+        $section->addText('B. USB');
+        $section->addText('C. HDMI');
+        $section->addText('D. 以上都是');
+        $section->addText('答案：D');
+        $section->addText('分值：2');
+        $section->addTextBreak(1);
+        
+        // 添加多选题示例
+        $section->addTitle('二、多选题', 2);
+        $section->addText('2. 以下哪些是连接器的常见故障？（多选）');
+        $section->addText('A. 接触不良');
+        $section->addText('B. 绝缘损坏');
+        $section->addText('C. 机械磨损');
+        $section->addText('D. 以上都是');
+        $section->addText('答案：A,B,C');
+        $section->addText('分值：3');
+        $section->addTextBreak(1);
+        
+        // 添加填空题示例
+        $section->addTitle('三、填空题', 2);
+        $section->addText('3. 连接器由（外壳）、（接触件）和（绝缘体）组成。');
+        $section->addText('答案：外壳,接触件,绝缘体');
+        $section->addText('分值：4');
+        $section->addTextBreak(1);
+        
+        // 添加简答题示例
+        $section->addTitle('四、简答题', 2);
+        $section->addText('4. 请简述连接器选型时需要考虑的主要因素。');
+        $section->addText('参考答案：选择连接器时需要考虑电气参数、机械参数、环境参数等。');
+        $section->addText('分值：10');
+        
+        // 保存到临时文件
+        $tempFile = tempnam(sys_get_temp_dir(), 'word_template_') . '.docx';
+        $phpWord->save($tempFile);
+        
+        // 返回文件下载
+        return response()->download($tempFile, '考试题目导入模板.docx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ])->deleteFileAfterSend(true);
     }
 }
