@@ -7,6 +7,7 @@ use App\Helpers\OssHelper;
 use App\Jobs\ProcessFileConversion;
 use App\Jobs\ProcessVideoConversion;
 use App\Models\Course;
+use App\Services\DocumentCompressService;
 use App\Services\FileConvertService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -78,15 +79,15 @@ class FileUploadController extends Controller
             ProcessVideoConversion::dispatch($path, $file->getClientOriginalName());
         }
 
-        // 如果是 PPT/PPTX，异步转换（避免同步阻塞导致 504 超时）
+        // 如果是 PPT/PPTX/PDF，异步压缩（避免同步阻塞导致 504 超时）
         $contentType = 'pdf';
         $images = null;
-        $needsConversion = FileConvertService::needsConversion($file->getClientOriginalName());
+        $needsCompression = DocumentCompressService::needsCompression($file->getClientOriginalName());
 
-        if ($needsConversion) {
-            // 异步处理转换，立即返回
+        if ($needsCompression) {
+            // 异步处理压缩，立即返回
             ProcessFileConversion::dispatch($path, $file->getClientOriginalName());
-            // content_type 和 images 设为 null，表示转换中
+            // content_type 和 images 设为 null，表示压缩中
             $contentType = null;
             $images = null;
         }
@@ -100,7 +101,7 @@ class FileUploadController extends Controller
                 'mime_type' => $file->getMimeType(),
                 'content_type' => $contentType,
                 'images' => $images,
-                'converting' => $needsConversion,
+                'converting' => $needsCompression,
             ],
         ]);
     }

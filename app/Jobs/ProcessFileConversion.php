@@ -4,7 +4,7 @@ namespace App\Jobs;
 
 use App\Models\Course;
 use App\Models\Attachment;
-use App\Services\FileConvertService;
+use App\Services\DocumentCompressService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -27,44 +27,29 @@ class ProcessFileConversion implements ShouldQueue
 
     public function handle(): void
     {
-        Log::info("开始转换文件: {$this->fileName} ({$this->path})");
+        Log::info("开始处理文件: {$this->fileName} ({$this->path})");
 
         try {
-            // PPT → WebP 图片序列
-            $webpImages = FileConvertService::pptToWebpImages($this->path);
-
-            if ($webpImages) {
-                // 删除原 PPT 文件
-                Storage::disk('oss')->delete($this->path);
-
-                // 更新数据库
-                $this->updateDatabase($this->path, $webpImages[0], 'images', $webpImages);
-
-                Log::info("文件转换完成（WebP）: {$this->fileName}", [
-                    'images_count' => count($webpImages),
-                ]);
-                return;
-            }
-
-            // WebP 转换失败，回退到 PDF
-            $pdfPath = FileConvertService::convertToPdf($this->path);
+            $compressService = app(DocumentCompressService::class);
+            $pdfPath = $compressService->compress($this->path);
 
             if ($pdfPath) {
-                // 删除原 PPT 文件
-                Storage::disk('oss')->delete($this->path);
-
                 // 更新数据库
                 $this->updateDatabase($this->path, $pdfPath, 'pdf', null);
 
-                Log::info("文件转换完成（PDF）: {$this->fileName}");
-                return;
+                Log::info("文件处理完成: {$this->fileName} -> {$pdfPath}");
+            } else {
+                // 压缩失败，保留原文件，更新 content_type 为 pdf（兜底）
+                Log::warning("文件压缩失败，保留原文件: {$this->fileName}");
+
+                // 更新数据库，将 content_type 设为 pdf
+                Course::where('content_url', $this->path)->update([
+                    'content_type' => 'pdf',
+                ]);
             }
 
-            // 转换全部失败，保留原文件，更新 content_type 为 pdf（兜底）
-            Log::warning("文件转换失败，保留原文件: {$this->fileName}");
-
         } catch (\Exception $e) {
-            Log::error("文件转换异常: {$this->fileName} - " . $e->getMessage());
+            Log::error("文件处理异常: {$this->fileName} - " . $e->getMessage());
             throw $e;
         }
     }
