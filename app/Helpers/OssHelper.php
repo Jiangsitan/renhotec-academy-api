@@ -36,6 +36,7 @@ class OssHelper
             'attachment' => 'attachments',
             'cover' => 'covers',
             'logo' => 'logos',
+            'exam' => 'exams',
             default => 'others'
         };
     }
