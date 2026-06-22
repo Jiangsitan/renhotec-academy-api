@@ -57,6 +57,7 @@ services:
       - ./public/storage:/app/public/storage
       - ./scripts:/app/scripts
       - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/bin/docker:/usr/bin/docker
 
   queue:
     image: academy-api:v1
@@ -87,6 +88,7 @@ services:
       - ./public/storage:/app/public/storage
       - ./scripts:/app/scripts
       - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/bin/docker:/usr/bin/docker
 
   nginx:
     image: nginx:alpine
