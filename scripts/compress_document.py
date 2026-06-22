@@ -33,18 +33,16 @@ def ppt_to_pdf(pptx_path: str, output_dir: str) -> Path:
     pdf_file = Path(output_dir) / (Path(pptx_path).stem + ".pdf")
 
     try:
-        # 通过 Docker exec 调用宿主机的 LibreOffice
-        # 注意：需要使用 /usr/bin/soffice 路径
-        docker_cmd = [
-            'docker', 'exec', 'renhotec-api',
+        # 直接调用宿主机的 LibreOffice
+        cmd = [
             '/usr/bin/soffice', '--headless', '--norestore', '--nologo',
             '--convert-to', 'pdf', '--outdir', output_dir, pptx_path
         ]
         
-        print(f"执行命令: {' '.join(docker_cmd)}", file=sys.stderr)
+        print(f"执行命令: {' '.join(cmd)}", file=sys.stderr)
         
         result = subprocess.run(
-            docker_cmd,
+            cmd,
             check=True,
             timeout=60,
             capture_output=True,

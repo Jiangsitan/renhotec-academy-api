@@ -58,6 +58,8 @@ services:
       - ./scripts:/app/scripts
       - /var/run/docker.sock:/var/run/docker.sock
       - /usr/bin/docker:/usr/bin/docker
+      - /usr/bin/soffice:/usr/bin/soffice
+      - /usr/lib/libreoffice:/usr/lib/libreoffice
 
   queue:
     image: academy-api:v1
@@ -89,6 +91,8 @@ services:
       - ./scripts:/app/scripts
       - /var/run/docker.sock:/var/run/docker.sock
       - /usr/bin/docker:/usr/bin/docker
+      - /usr/bin/soffice:/usr/bin/soffice
+      - /usr/lib/libreoffice:/usr/lib/libreoffice
 
   nginx:
     image: nginx:alpine
