@@ -623,7 +623,7 @@ class AdminController extends Controller
             'type' => 'sometimes|in:document,video',
             'content_source' => 'sometimes|in:online,local',
             'content_url' => 'sometimes|string|max:1000',
-            'content_type' => 'nullable|string|in:pdf,images,video',
+            'content_type' => 'nullable|string|max:50',
             'images' => 'nullable|array',
             'cover_image' => 'nullable|string|max:500',
             'file_name' => 'nullable|string|max:255',
