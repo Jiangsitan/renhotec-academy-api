@@ -3,7 +3,7 @@
 namespace App\Jobs;
 
 use App\Helpers\OssHelper;
-use App\Services\FileConvertService;
+use App\Services\DocumentCompressService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -53,35 +53,16 @@ class MergeUploadChunks implements ShouldQueue
             // 清理临时分片
             Storage::disk('local')->deleteDirectory($chunkDir);
 
-            // 如果是 PPT/PPTX，自动转换为 WebP 图片序列并删除原文件
-            if (FileConvertService::needsConversion($this->meta['file_name'])) {
-                $webpImages = FileConvertService::pptToWebpImages($this->finalPath);
-                if ($webpImages) {
-                    // 删除原 PPT 文件
-                    Storage::disk('oss')->delete($this->finalPath);
-                    // 更新路径为第一张图片路径
-                    $this->finalPath = $webpImages[0];
-                    // 更新元数据
-                    $this->meta['content_type'] = 'images';
-                    $this->meta['images'] = $webpImages;
-                } else {
-                    // 如果 WebP 转换失败，回退到 PDF 转换
-                    $pdfPath = FileConvertService::convertToPdf($this->finalPath);
-                    if ($pdfPath) {
-                        // 删除原 PPT 文件
-                        Storage::disk('oss')->delete($this->finalPath);
-                        // 更新路径为 PDF 路径
-                        $this->finalPath = $pdfPath;
-                    }
-                }
+            // 如果是 PPT/PPTX/PDF，触发异步压缩（避免同步阻塞导致超时）
+            if (DocumentCompressService::needsCompression($this->meta['file_name'])) {
+                ProcessFileConversion::dispatch($this->finalPath, $this->meta['file_name']);
             }
 
             // 如果是视频，触发异步转换为 WebM
-            // 注意：转换完成后会自动删除原文件并更新数据库路径
             $extension = strtolower(pathinfo($this->meta['file_name'], PATHINFO_EXTENSION));
             $videoExtensions = ['mp4', 'avi', 'mov', 'mkv'];
             if (in_array($extension, $videoExtensions)) {
-                \App\Jobs\ProcessVideoConversion::dispatch($this->finalPath, $this->meta['file_name']);
+                ProcessVideoConversion::dispatch($this->finalPath, $this->meta['file_name']);
             }
 
             Log::info("分片合并完成: {$this->uploadId} -> {$this->finalPath}");
