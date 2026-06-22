@@ -22,10 +22,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     ffmpeg \
     ghostscript \
-    libreoffice \
-    libreoffice-writer \
-    libreoffice-calc \
-    libreoffice-impress \
     python3 \
     python3-pip \
     fonts-wqy-zenhei \
