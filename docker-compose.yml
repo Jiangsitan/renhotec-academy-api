@@ -33,6 +33,7 @@ services:
     image: academy-api:v1
     container_name: renhotec-api
     restart: unless-stopped
+    network_mode: host
     environment:
       - APP_ENV=production
       - APP_DEBUG=false
@@ -45,8 +46,6 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:-Rh_2026}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     depends_on:
       mysql:
         condition: service_healthy
@@ -56,16 +55,13 @@ services:
       - storage_data:/app/storage
       - ./public/storage:/app/public/storage
       - ./scripts:/app/scripts
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /usr/bin/docker:/usr/bin/docker
-      - /usr/bin/soffice:/usr/bin/soffice
-      - /usr/lib/libreoffice:/usr/lib/libreoffice
 
   queue:
     image: academy-api:v1
     container_name: renhotec-queue
     restart: always
     command: php artisan queue:work --sleep=3 --tries=3 --max-time=3600
+    network_mode: host
     environment:
       - APP_ENV=production
       - APP_DEBUG=false
@@ -78,8 +74,6 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:-Rh_2026}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     depends_on:
       mysql:
         condition: service_healthy
@@ -89,10 +83,6 @@ services:
       - storage_data:/app/storage
       - ./public/storage:/app/public/storage
       - ./scripts:/app/scripts
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /usr/bin/docker:/usr/bin/docker
-      - /usr/bin/soffice:/usr/bin/soffice
-      - /usr/lib/libreoffice:/usr/lib/libreoffice
 
   nginx:
     image: nginx:alpine

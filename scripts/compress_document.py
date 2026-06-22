@@ -21,7 +21,7 @@ except ImportError:
 
 def ppt_to_pdf(pptx_path: str, output_dir: str) -> Path:
     """
-    使用 LibreOffice 将 PPT 转换为 PDF（通过 Docker exec 调用宿主机 LibreOffice）
+    使用 LibreOffice 将 PPT 转换为 PDF（通过宿主机网络调用）
     
     Args:
         pptx_path: PPT 文件路径
@@ -33,9 +33,9 @@ def ppt_to_pdf(pptx_path: str, output_dir: str) -> Path:
     pdf_file = Path(output_dir) / (Path(pptx_path).stem + ".pdf")
 
     try:
-        # 直接调用宿主机的 LibreOffice
+        # 使用 soffice 直接调用（通过宿主机网络）
         cmd = [
-            '/usr/bin/soffice', '--headless', '--norestore', '--nologo',
+            'soffice', '--headless', '--norestore', '--nologo',
             '--convert-to', 'pdf', '--outdir', output_dir, pptx_path
         ]
         
