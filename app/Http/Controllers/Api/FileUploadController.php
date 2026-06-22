@@ -265,6 +265,7 @@ class FileUploadController extends Controller
                 'file_name' => $meta['file_name'],
                 'file_size' => $meta['file_size'],
                 'status' => 'processing',
+                'converting' => DocumentCompressService::needsCompression($meta['file_name']),
             ],
         ]);
     }
