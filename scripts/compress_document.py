@@ -33,9 +33,9 @@ def ppt_to_pdf(pptx_path: str, output_dir: str) -> Path:
     pdf_file = Path(output_dir) / (Path(pptx_path).stem + ".pdf")
 
     try:
-        # 使用 soffice 直接调用（通过宿主机网络）
+        # 使用正确的 soffice 路径（通过挂载的宿主机 LibreOffice）
         cmd = [
-            'soffice', '--headless', '--norestore', '--nologo',
+            '/usr/lib64/libreoffice/program/soffice', '--headless', '--norestore', '--nologo',
             '--convert-to', 'pdf', '--outdir', output_dir, pptx_path
         ]
         
