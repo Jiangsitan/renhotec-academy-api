@@ -1,0 +1,211 @@
+#!/usr/bin/env python3
+"""
+文档压缩工具
+支持：PPT/PPTX → PDF 转换，PDF 压缩
+依赖：LibreOffice (soffice)、PyMuPDF (fitz)
+"""
+
+import subprocess
+import sys
+import argparse
+import shutil
+from pathlib import Path
+
+try:
+    import fitz  # PyMuPDF
+except ImportError:
+    print("ERROR: 请安装 PyMuPDF: pip install pymupdf", file=sys.stderr)
+    sys.exit(1)
+
+
+def find_soffice() -> str:
+    """查找 LibreOffice 可执行文件"""
+    for name in ["soffice", "libreoffice"]:
+        path = shutil.which(name)
+        if path:
+            return path
+    return None
+
+
+def ppt_to_pdf(pptx_path: str, output_dir: str) -> Path:
+    """
+    使用 LibreOffice 将 PPT 转换为 PDF
+    
+    Args:
+        pptx_path: PPT 文件路径
+        output_dir: 输出目录
+    
+    Returns:
+        生成的 PDF 文件路径
+    """
+    soffice = find_soffice()
+    if not soffice:
+        print("ERROR: 未找到 LibreOffice，请安装后重试", file=sys.stderr)
+        sys.exit(1)
+
+    pdf_file = Path(output_dir) / (Path(pptx_path).stem + ".pdf")
+
+    try:
+        subprocess.run(
+            [soffice, "--headless", "--convert-to", "pdf", "--outdir", output_dir, pptx_path],
+            check=True,
+            timeout=120,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        
+        if not pdf_file.exists():
+            # 尝试查找生成的 PDF
+            pdf_files = list(Path(output_dir).glob("*.pdf"))
+            if pdf_files:
+                pdf_file = pdf_files[0]
+            else:
+                print(f"ERROR: PDF 文件未生成", file=sys.stderr)
+                sys.exit(1)
+        
+        return pdf_file
+        
+    except subprocess.TimeoutExpired:
+        print("ERROR: PPT 转 PDF 超时", file=sys.stderr)
+        sys.exit(1)
+    except subprocess.CalledProcessError as e:
+        print(f"ERROR: PPT 转 PDF 失败: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def compress_pdf(pdf_path: Path, output_path: Path, quality: int = 85) -> Path:
+    """
+    压缩 PDF 文件（降低图片质量）
+    
+    Args:
+        pdf_path: 输入 PDF 路径
+        output_path: 输出 PDF 路径
+        quality: 图片质量 (1-100)
+    
+    Returns:
+        压缩后的 PDF 文件路径
+    """
+    try:
+        doc = fitz.open(str(pdf_path))
+        
+        # 遍历每一页，压缩图片
+        for page_num in range(len(doc)):
+            page = doc[page_num]
+            images = page.get_images()
+            
+            for img_index, img in enumerate(images):
+                xref = img[0]
+                
+                try:
+                    # 提取图片
+                    base_image = doc.extract_image(xref)
+                    if not base_image:
+                        continue
+                    
+                    image_bytes = base_image["image"]
+                    image_ext = base_image["ext"]
+                    
+                    # 只压缩大型图片（超过 100KB）
+                    if len(image_bytes) < 102400:
+                        continue
+                    
+                    # 使用 PIL 压缩图片
+                    from io import BytesIO
+                    from PIL import Image
+                    
+                    pil_image = Image.open(BytesIO(image_bytes))
+                    
+                    # 转换为 RGB（如果是 RGBA）
+                    if pil_image.mode == 'RGBA':
+                        pil_image = pil_image.convert('RGB')
+                    
+                    # 压缩图片
+                    output_buffer = BytesIO()
+                    pil_image.save(output_buffer, format='JPEG', quality=quality, optimize=True)
+                    compressed_bytes = output_buffer.getvalue()
+                    
+                    # 替换图片
+                    doc.update_stream(xref, compressed_bytes)
+                    
+                except Exception as e:
+                    # 图片处理失败，跳过
+                    continue
+        
+        # 保存压缩后的 PDF
+        doc.save(
+            str(output_path),
+            deflate=True,
+            garbage=4,
+            clean=True
+        )
+        doc.close()
+        
+        return output_path
+        
+    except Exception as e:
+        print(f"ERROR: PDF 压缩失败: {e}", file=sys.stderr)
+        # 压缩失败，直接复制原文件
+        shutil.copy2(pdf_path, output_path)
+        return output_path
+
+
+def main():
+    parser = argparse.ArgumentParser(description="文档压缩工具（PPT→PDF、PDF压缩）")
+    parser.add_argument("input", help="输入文件路径（PPT/PPTX/PDF）")
+    parser.add_argument("output", help="输出文件路径（PDF）")
+    parser.add_argument("--quality", type=int, default=85, help="图片质量 1-100（默认85）")
+    parser.add_argument("--keep-original", action="store_true", help="保留原文件")
+    
+    args = parser.parse_args()
+    
+    input_path = Path(args.input)
+    output_path = Path(args.output)
+    
+    if not input_path.exists():
+        print(f"ERROR: 文件不存在: {input_path}", file=sys.stderr)
+        sys.exit(1)
+    
+    # 确保输出目录存在
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    ext = input_path.suffix.lower()
+    
+    if ext in ['.ppt', '.pptx']:
+        # PPT → PDF
+        print(f"正在转换 PPT 为 PDF...", file=sys.stderr)
+        temp_dir = output_path.parent / "temp"
+        temp_dir.mkdir(exist_ok=True)
+        
+        pdf_path = ppt_to_pdf(str(input_path), str(temp_dir))
+        
+        # 压缩 PDF
+        print(f"正在压缩 PDF...", file=sys.stderr)
+        final_path = compress_pdf(pdf_path, output_path, args.quality)
+        
+        # 清理临时文件
+        if pdf_path != final_path and pdf_path.exists():
+            pdf_path.unlink()
+        if temp_dir.exists():
+            try:
+                temp_dir.rmdir()
+            except:
+                pass
+        
+        print(f"完成: {final_path}", file=sys.stderr)
+        print(str(final_path))
+        
+    elif ext == '.pdf':
+        # PDF 压缩
+        print(f"正在压缩 PDF...", file=sys.stderr)
+        final_path = compress_pdf(input_path, output_path, args.quality)
+        
+        print(f"完成: {final_path}", file=sys.stderr)
+        print(str(final_path))
+        
+    else:
+        print(f"ERROR: 不支持的文件格式: {ext}", file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

@@ -26,11 +26,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libreoffice-writer \
     libreoffice-calc \
     libreoffice-impress \
+    python3 \
+    python3-pip \
     fonts-wqy-zenhei \
     fonts-wqy-microhei \
     fonts-noto-cjk \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# 安装 Python 依赖
+RUN pip3 install --break-system-packages pymupdf==1.24.0 Pillow==10.4.0
 
 # 4. 编译并安装 PHP 核心扩展（去掉了已内置的 mbstring 和 xml）
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
