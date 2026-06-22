@@ -104,13 +104,14 @@ class DocumentCompressService
         $compressedContent = file_get_contents($localOutput);
         $disk->put($ossOutputPath, $compressedContent);
 
-        // 删除原文件
+        // 删除原文件（OSS）
         if ($ext !== 'pdf') {
             $disk->delete($ossPath);
         }
 
-        // 清理本地文件
+        // 清理本地临时文件和目录
         $this->cleanup($localInput, $localOutput);
+        $this->cleanupDir($tempDir);
 
         Log::info('文档压缩完成', [
             'input' => $ossPath,
@@ -132,5 +133,24 @@ class DocumentCompressService
                 @unlink($file);
             }
         }
+    }
+
+    /**
+     * 清理临时目录
+     */
+    protected function cleanupDir(string $dir): void
+    {
+        if (!is_dir($dir)) {
+            return;
+        }
+        
+        $files = array_diff(scandir($dir), ['.', '..']);
+        foreach ($files as $file) {
+            $filePath = $dir . '/' . $file;
+            if (is_file($filePath)) {
+                @unlink($filePath);
+            }
+        }
+        @rmdir($dir);
     }
 }
