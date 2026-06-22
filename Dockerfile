@@ -39,7 +39,7 @@ RUN pip3 install --break-system-packages \
     -i https://mirrors.aliyun.com/pypi/simple/ \
     --trusted-host mirrors.aliyun.com \
     --only-binary :all: \
-    pymupdf==1.24.0 Pillow==10.4.0
+    pymupdf==1.24.14 Pillow==10.4.0
 
 # 4. 编译并安装 PHP 核心扩展（去掉了已内置的 mbstring 和 xml）
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
