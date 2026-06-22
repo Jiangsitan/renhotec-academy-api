@@ -20,16 +20,16 @@ except ImportError:
 
 def find_soffice() -> str:
     """查找 LibreOffice 可执行文件"""
-    # 优先使用 which 查找
+    # 优先使用完整路径（挂载的宿主机 LibreOffice）
+    for name in ["/usr/lib64/libreoffice/program/soffice", "/usr/bin/soffice"]:
+        if Path(name).exists():
+            return name
+    
+    # 尝试使用 which 查找
     for name in ["soffice", "libreoffice"]:
         path = shutil.which(name)
         if path:
             return path
-    
-    # 尝试常见路径
-    for name in ["/usr/bin/soffice", "/usr/lib64/libreoffice/program/soffice"]:
-        if Path(name).exists():
-            return name
     
     return None
 
