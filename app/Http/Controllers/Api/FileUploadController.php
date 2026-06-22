@@ -332,4 +332,18 @@ class FileUploadController extends Controller
             ],
         ]);
     }
+
+    /**
+     * 取消分片上传，清理已上传的分片
+     */
+    public function cancelUpload(string $uploadId): JsonResponse
+    {
+        $chunkDir = "temp/uploads/{$uploadId}";
+        
+        if (Storage::disk('local')->exists($chunkDir)) {
+            Storage::disk('local')->deleteDirectory($chunkDir);
+        }
+
+        return response()->json(['message' => '已取消']);
+    }
 }
