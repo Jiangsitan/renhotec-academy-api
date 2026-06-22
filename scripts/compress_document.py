@@ -9,6 +9,7 @@ import subprocess
 import sys
 import argparse
 import shutil
+import os
 from pathlib import Path
 
 try:
@@ -20,8 +21,8 @@ except ImportError:
 
 def find_soffice() -> str:
     """查找 LibreOffice 可执行文件"""
-    # 优先使用完整路径（挂载的宿主机 LibreOffice）
-    for name in ["/usr/lib64/libreoffice/program/soffice", "/usr/bin/soffice"]:
+    # 优先使用 /work 目录下的 LibreOffice
+    for name in ["/work/lib64/libreoffice/program/soffice", "/usr/lib64/libreoffice/program/soffice", "/usr/bin/soffice"]:
         if Path(name).exists():
             return name
     
@@ -50,6 +51,10 @@ def ppt_to_pdf(pptx_path: str, output_dir: str) -> Path:
         print("ERROR: 未找到 LibreOffice，请确保已安装", file=sys.stderr)
         sys.exit(1)
 
+    # 设置库路径环境变量
+    env = os.environ.copy()
+    env['LD_LIBRARY_PATH'] = '/work/lib64:' + env.get('LD_LIBRARY_PATH', '')
+
     pdf_file = Path(output_dir) / (Path(pptx_path).stem + ".pdf")
 
     try:
@@ -65,7 +70,8 @@ def ppt_to_pdf(pptx_path: str, output_dir: str) -> Path:
             check=True,
             timeout=60,
             capture_output=True,
-            text=True
+            text=True,
+            env=env  # 使用自定义环境变量
         )
         
         print(f"LibreOffice 输出: {result.stdout}", file=sys.stderr)

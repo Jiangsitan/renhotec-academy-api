@@ -55,8 +55,7 @@ services:
       - storage_data:/app/storage
       - ./public/storage:/app/public/storage
       - ./scripts:/app/scripts
-      - /usr/lib64/libreoffice:/usr/lib64/libreoffice
-      - /usr/lib64:/usr/lib64
+      - /work/lib64:/work/lib64
       - /tmp:/tmp
 
   queue:
@@ -86,8 +85,7 @@ services:
       - storage_data:/app/storage
       - ./public/storage:/app/public/storage
       - ./scripts:/app/scripts
-      - /usr/lib64/libreoffice:/usr/lib64/libreoffice
-      - /usr/lib64:/usr/lib64
+      - /work/lib64:/work/lib64
       - /tmp:/tmp
 
   nginx:
