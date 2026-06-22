@@ -75,63 +75,20 @@ def ppt_to_pdf(pptx_path: str, output_dir: str) -> Path:
 
 def compress_pdf(pdf_path: Path, output_path: Path, quality: int = 85) -> Path:
     """
-    压缩 PDF 文件（降低图片质量）
+    保存 PDF 文件（不做图片压缩，只做格式优化）
     
     Args:
         pdf_path: 输入 PDF 路径
         output_path: 输出 PDF 路径
-        quality: 图片质量 (1-100)
+        quality: 图片质量 (1-100) - 未使用
     
     Returns:
-        压缩后的 PDF 文件路径
+        PDF 文件路径
     """
     try:
         doc = fitz.open(str(pdf_path))
         
-        # 遍历每一页，压缩图片
-        for page_num in range(len(doc)):
-            page = doc[page_num]
-            images = page.get_images()
-            
-            for img_index, img in enumerate(images):
-                xref = img[0]
-                
-                try:
-                    # 提取图片
-                    base_image = doc.extract_image(xref)
-                    if not base_image:
-                        continue
-                    
-                    image_bytes = base_image["image"]
-                    image_ext = base_image["ext"]
-                    
-                    # 只压缩大型图片（超过 100KB）
-                    if len(image_bytes) < 102400:
-                        continue
-                    
-                    # 使用 PIL 压缩图片
-                    from io import BytesIO
-                    from PIL import Image
-                    
-                    pil_image = Image.open(BytesIO(image_bytes))
-                    
-                    # 转换为 RGB（如果是 RGBA）
-                    if pil_image.mode == 'RGBA':
-                        pil_image = pil_image.convert('RGB')
-                    
-                    # 压缩图片
-                    output_buffer = BytesIO()
-                    pil_image.save(output_buffer, format='JPEG', quality=quality, optimize=True)
-                    compressed_bytes = output_buffer.getvalue()
-                    
-                    # 替换图片
-                    doc.update_stream(xref, compressed_bytes)
-                    
-                except Exception as e:
-                    # 图片处理失败，跳过
-                    continue
-        
-        # 保存压缩后的 PDF
+        # 只做 PDF 优化保存，不做图片压缩
         doc.save(
             str(output_path),
             deflate=True,
@@ -143,8 +100,8 @@ def compress_pdf(pdf_path: Path, output_path: Path, quality: int = 85) -> Path:
         return output_path
         
     except Exception as e:
-        print(f"ERROR: PDF 压缩失败: {e}", file=sys.stderr)
-        # 压缩失败，直接复制原文件
+        print(f"ERROR: PDF 处理失败: {e}", file=sys.stderr)
+        # 处理失败，直接复制原文件
         shutil.copy2(pdf_path, output_path)
         return output_path
 
