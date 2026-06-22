@@ -41,13 +41,13 @@ class DocumentCompressService
             return null;
         }
 
-        // 创建临时目录
-        $tempDir = storage_path('app/temp/doc_compress');
+        // 使用 /tmp 目录（宿主机和容器共享）
+        $tempDir = '/tmp/doc_compress';
         if (!is_dir($tempDir)) {
             mkdir($tempDir, 0755, true);
         }
 
-        // 从 OSS 下载文件到本地
+        // 从 OSS 下载文件到 /tmp
         $localInput = $tempDir . '/' . basename($ossPath);
         file_put_contents($localInput, $disk->get($ossPath));
 
