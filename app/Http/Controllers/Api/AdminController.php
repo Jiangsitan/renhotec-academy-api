@@ -639,6 +639,11 @@ class AdminController extends Controller
             $validated['category_id'] = $series->category_id;
         }
 
+        // 如果更新了 content_url，清理旧文件
+        if (isset($validated['content_url']) && $validated['content_url'] !== $course->content_url) {
+            $this->cleanupOldCourseFiles($course);
+        }
+
         $course->update($validated);
 
         $this->auditService->log(
@@ -653,6 +658,34 @@ class AdminController extends Controller
             'message' => '课程已更新',
             'data' => $course->fresh()->load('category'),
         ]);
+    }
+
+    /**
+     * 清理课程的旧文件
+     */
+    private function cleanupOldCourseFiles(Course $course): void
+    {
+        $disk = \Storage::disk('oss');
+        $filesToDelete = [];
+
+        // 清理旧的 content_url 文件
+        if ($course->content_url) {
+            $filesToDelete[] = $course->content_url;
+        }
+
+        // 清理旧的 images 文件（WebP 图片序列）
+        if ($course->images && is_array($course->images)) {
+            $filesToDelete = array_merge($filesToDelete, $course->images);
+        }
+
+        // 批量删除文件
+        if (!empty($filesToDelete)) {
+            $disk->delete($filesToDelete);
+            \Log::info('已清理课程旧文件', [
+                'course_id' => $course->id,
+                'files' => $filesToDelete,
+            ]);
+        }
     }
 
     public function updateCourseStatus(Request $request, Course $course): JsonResponse
