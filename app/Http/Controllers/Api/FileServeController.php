@@ -171,7 +171,7 @@ class FileServeController extends Controller
     }
 
     /**
-     * 处理 Range 请求
+     * 处理 Range 请求（使用 OSS 原生 Range 支持，只下载需要的字节）
      */
     protected function handleRangeRequest(
         $disk,
@@ -193,9 +193,13 @@ class FileServeController extends Controller
 
         $length = $end - $start + 1;
 
-        return new StreamedResponse(function () use ($disk, $path, $start, $length) {
-            $content = $disk->get($path);
-            echo substr($content, $start, $length);
+        return new StreamedResponse(function () use ($path, $start, $end) {
+            $client = \App\Helpers\OssHelper::getClient();
+            $bucket = \App\Helpers\OssHelper::getBucket();
+            $content = $client->getObject($bucket, $path, [
+                \OSS\OssClient::OSS_RANGE => "bytes={$start}-{$end}",
+            ]);
+            echo $content;
         }, 206, array_merge($headers, [
             'Content-Range' => "bytes {$start}-{$end}/{$fileSize}",
             'Content-Length' => $length,
