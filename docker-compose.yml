@@ -24,10 +24,10 @@ services:
     container_name: renhotec-redis
     restart: unless-stopped
     ports:
-      - "${REDIS_PORT:-6479}:6379"
+      - "6479:6479"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-Rh_2026}
+    command: redis-server --port 6479 --appendonly yes --requirepass ${REDIS_PASSWORD:-Rh_2026}
 
   api:
     image: academy-api:v1
