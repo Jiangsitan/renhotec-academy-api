@@ -61,6 +61,9 @@ COPY . .
 # 复制 PHP 配置到正确位置
 COPY php.ini /usr/local/etc/php/conf.d/custom.ini
 
+# 复制 PHP-FPM 配置（增加 worker 数，避免并发请求耗尽）
+COPY php-fpm.conf /usr/local/etc/php-fpm.d/www.conf
+
 # 复制 supervisor 配置
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
