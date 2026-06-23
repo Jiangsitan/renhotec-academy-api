@@ -4,7 +4,6 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AdminCommentController;
 use App\Http\Controllers\Api\CommentController;
-use App\Http\Controllers\Api\ExamImportController;
 use App\Http\Controllers\Api\FileUploadController;
 use App\Http\Controllers\Api\FileServeController;
 use App\Http\Controllers\Api\HomepageController;
@@ -149,10 +148,6 @@ Route::middleware('auth.api')->group(function () {
         Route::delete('/exams/{exam}/questions/{question}', [AdminController::class, 'deleteQuestion']);
         Route::get('/exams/import-template', [AdminController::class, 'downloadExamImportTemplate']);
         Route::post('/exams/import', [AdminController::class, 'importExams']);
-        
-        // Word 导入题目
-        Route::post('/exams/{exam}/import/word', [ExamImportController::class, 'importFromWord']);
-        Route::get('/exams/import/word-template', [ExamImportController::class, 'downloadTemplate']);
 
         // 考试记录
         Route::get('/exam-records', [AdminController::class, 'examRecords']);
