@@ -92,7 +92,7 @@ def ppt_to_pdf(pptx_path: str, output_dir: str) -> Path:
 
 def compress_pdf(pdf_path: Path, output_path: Path, quality: int = 85) -> Path:
     """
-    保存 PDF 文件（不做图片压缩，只做格式优化）
+    保存 PDF 文件（直接复制，不做优化）
     
     Args:
         pdf_path: 输入 PDF 路径
@@ -103,24 +103,13 @@ def compress_pdf(pdf_path: Path, output_path: Path, quality: int = 85) -> Path:
         PDF 文件路径
     """
     try:
-        doc = fitz.open(str(pdf_path))
-        
-        # 只做 PDF 优化保存，不做图片压缩
-        doc.save(
-            str(output_path),
-            deflate=True,
-            garbage=4,
-            clean=True
-        )
-        doc.close()
-        
+        # 直接复制文件
+        shutil.copy2(str(pdf_path), str(output_path))
         return output_path
         
     except Exception as e:
         print(f"ERROR: PDF 处理失败: {e}", file=sys.stderr)
-        # 处理失败，直接复制原文件
-        shutil.copy2(pdf_path, output_path)
-        return output_path
+        sys.exit(1)
 
 
 def main():
