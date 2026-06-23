@@ -51,9 +51,9 @@ class DocumentCompressService
         $localInput = $tempDir . '/' . basename($ossPath);
         file_put_contents($localInput, $disk->get($ossPath));
 
-        // 生成输出路径
+        // 生成输出路径（确保输入和输出路径不同）
         $ext = strtolower(pathinfo($ossPath, PATHINFO_EXTENSION));
-        $outputFilename = pathinfo($ossPath, PATHINFO_FILENAME) . '.pdf';
+        $outputFilename = pathinfo($ossPath, PATHINFO_FILENAME) . ($ext === 'pdf' ? '_compressed' : '') . '.pdf';
         $localOutput = $tempDir . '/' . $outputFilename;
 
         // 调用 Python 脚本
@@ -90,14 +90,16 @@ class DocumentCompressService
         }
 
         // 生成 OSS 路径
-        $ossOutputPath = str_replace(
-            ['.' . $ext, '.PPT', '.PPTX', '.PDF'],
-            '.pdf',
-            $ossPath
-        );
-        if ($ossOutputPath === $ossPath) {
-            // 如果路径没有变化，添加 _compressed 后缀
-            $ossOutputPath = str_replace('.pdf', '_compressed.pdf', $ossPath);
+        if ($ext === 'pdf') {
+            // PDF 文件：保留原文件名，直接覆盖
+            $ossOutputPath = $ossPath;
+        } else {
+            // PPT 文件：转换为 PDF
+            $ossOutputPath = str_replace(
+                ['.' . $ext, '.PPT', '.PPTX', '.PDF'],
+                '.pdf',
+                $ossPath
+            );
         }
 
         // 上传压缩后的文件到 OSS
