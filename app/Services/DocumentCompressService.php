@@ -104,6 +104,9 @@ class DocumentCompressService
         $compressedContent = file_get_contents($localOutput);
         $disk->put($ossOutputPath, $compressedContent);
 
+        // 获取原始文件大小（在删除之前）
+        $originalSize = filesize($localInput) ?? 0;
+
         // 删除原文件（OSS）
         if ($ext !== 'pdf') {
             $disk->delete($ossPath);
@@ -116,7 +119,7 @@ class DocumentCompressService
         Log::info('文档压缩完成', [
             'input' => $ossPath,
             'output' => $ossOutputPath,
-            'original_size' => filesize($localInput) ?? 0,
+            'original_size' => $originalSize,
             'compressed_size' => strlen($compressedContent),
         ]);
 
