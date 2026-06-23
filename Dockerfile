@@ -63,6 +63,7 @@ COPY php.ini /usr/local/etc/php/conf.d/custom.ini
 
 # 复制 nginx 配置（替换 Debian 默认配置）
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+RUN rm -f /etc/nginx/sites-enabled/default
 
 # 复制 PHP-FPM 配置（增加 worker 数，避免并发请求耗尽）
 COPY php-fpm.conf /usr/local/etc/php-fpm.d/www.conf
