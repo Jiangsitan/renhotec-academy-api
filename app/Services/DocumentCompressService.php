@@ -30,9 +30,9 @@ class DocumentCompressService
      *
      * @param string $ossPath OSS 上的文件路径
      * @param int $quality 图片质量 (1-100)
-     * @return string|null 压缩后的 PDF 路径，失败返回 null
+     * @return array|null 压缩后的文件信息 ['path' => string, 'size' => int]，失败返回 null
      */
-    public function compress(string $ossPath, int $quality = 85): ?string
+    public function compress(string $ossPath, int $quality = 85): ?array
     {
         $disk = Storage::disk('oss');
 
@@ -125,7 +125,10 @@ class DocumentCompressService
             'compressed_size' => strlen($compressedContent),
         ]);
 
-        return $ossOutputPath;
+        return [
+            'path' => $ossOutputPath,
+            'size' => strlen($compressedContent),
+        ];
     }
 
     /**
