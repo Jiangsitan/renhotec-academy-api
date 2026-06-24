@@ -27,7 +27,7 @@ class ExamGradingService
             }
 
             // 简答题：需要导师/管理员手动批改
-            if ($question->type === 'short_answer') {
+            if ($question->type == 4) {
                 $hasSubjective = true;
                 $answer['is_correct'] = null;
                 $answer['score_awarded'] = 0;
@@ -36,7 +36,7 @@ class ExamGradingService
             }
 
             // 填空题：需要导师/管理员手动批改
-            if ($question->type === 'fill_blank') {
+            if ($question->type == 5) {
                 $hasSubjective = true;
                 $answer['is_correct'] = null;
                 $answer['score_awarded'] = 0;
@@ -130,9 +130,9 @@ class ExamGradingService
     {
         $correct = $question->correct_answer;
 
-        return match ($question->type) {
-            'single', 'truefalse' => strtolower(trim((string) $answer)) === strtolower(trim($correct)),
-            'multiple' => $this->checkMultipleAnswer($correct, $answer),
+        return match ((int)$question->type) {
+            1, 3 => strtolower(trim((string) $answer)) === strtolower(trim($correct)), // 单选、判断
+            2 => $this->checkMultipleAnswer($correct, $answer), // 多选
             default => false,
         };
     }

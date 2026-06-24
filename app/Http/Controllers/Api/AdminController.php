@@ -916,12 +916,12 @@ class AdminController extends Controller
     public function createQuestion(Request $request, Exam $exam): JsonResponse
     {
         $validated = $request->validate([
-            'type' => 'required|in:single,multiple,truefalse,short_answer,fill_blank',
+            'type' => 'required|integer|in:1,2,3,4,5',
             'content' => 'required|string',
             'options' => 'nullable|array',
             'options.*.key' => 'required|string',
             'options.*.value' => 'required|string',
-            'correct_answer' => 'required_unless:type,short_answer|nullable',
+            'correct_answer' => 'required_unless:type,4|nullable',
             'score' => 'required|numeric|min:0',
             'course_id' => 'nullable|exists:courses,id',
             'sort_order' => 'nullable|integer|min:0',
@@ -939,12 +939,12 @@ class AdminController extends Controller
             ], 422);
         }
 
-        if ($validated['type'] === 'short_answer') {
+        if ($validated['type'] == 4) { // 简答题
             $validated['options'] = null;
             $validated['correct_answer'] = $validated['correct_answer'] ?: null;
         }
 
-        if ($validated['type'] === 'fill_blank') {
+        if ($validated['type'] == 5) { // 填空题
             $validated['options'] = null;
             // correct_answer 存储 JSON 数组，如 ["前锁","前锁","后锁","后锁"]
             if (is_string($validated['correct_answer'])) {
@@ -969,7 +969,7 @@ class AdminController extends Controller
         }
 
         $validated = $request->validate([
-            'type' => 'sometimes|in:single,multiple,truefalse,short_answer,fill_blank',
+            'type' => 'sometimes|integer|in:1,2,3,4,5',
             'content' => 'sometimes|string',
             'options' => 'nullable|array',
             'options.*.key' => 'required|string',
@@ -981,11 +981,11 @@ class AdminController extends Controller
         ]);
 
         // 填空题：将逗号分隔的答案转为 JSON 数组
-        if (isset($validated['type']) && $validated['type'] === 'fill_blank' && isset($validated['correct_answer']) && is_string($validated['correct_answer'])) {
+        if (isset($validated['type']) && $validated['type'] == 5 && isset($validated['correct_answer']) && is_string($validated['correct_answer'])) {
             // 支持逗号或中文逗号分隔
             $parts = preg_split('/[,，]/', $validated['correct_answer']);
             $validated['correct_answer'] = json_encode(array_map('trim', array_filter($parts)));
-        } elseif (isset($validated['correct_answer']) && is_string($validated['correct_answer']) && isset($question->type) && $question->type === 'fill_blank') {
+        } elseif (isset($validated['correct_answer']) && is_string($validated['correct_answer']) && isset($question->type) && $question->type == 5) {
             // 支持逗号或中文逗号分隔
             $parts = preg_split('/[,，]/', $validated['correct_answer']);
             $validated['correct_answer'] = json_encode(array_map('trim', array_filter($parts)));
@@ -1724,7 +1724,7 @@ class AdminController extends Controller
             '关联课程ID：选填。关联的课程ID，多个用逗号分隔（如 1,2,3）。学员需完成所有课程才能参加考试。',
             '考试时长(分钟)：必填。考试时间限制（分钟），如 60。',
             '及格分数：必填。0-100 之间的数字，如 60。',
-            '题型：必填。只能填以下值：single / multiple / truefalse / short_answer / fill_blank',
+            '题型：必填。只能填以下值：1(单选) / 2(多选) / 3(判断) / 4(简答) / 5(填空)',
             '题目内容：必填。题目的文字内容。填空题用（）标记空位，每个（）对应一个空。如需插入图片，使用 HTML 格式：<img src="图片URL">',
             '选项：单选/多选/判断题必填，其他题型留空。格式：A.选项1|B.选项2|C.选项3|D.选项4。选项中也可插入图片：<img src="URL">选项文字',
             '正确答案：单选填字母（如 A），多选填逗号分隔（如 A,B,D），判断填 A(对)或 B(错)，简答填参考答案（可选），填空填逗号分隔答案（如 外壳,胶芯,中心导体）。',
@@ -1767,14 +1767,14 @@ class AdminController extends Controller
             '',
             '=================== 示例数据 ===================',
             '考试名称,关联课程ID,考试时长(分钟),及格分数,题型,题目内容,选项,正确答案,分值,题目关联课程ID,排序',
-            'Lemo系列连接器考试,46,60,60,short_answer,列举出雷莫公司的下属品牌及其产品主要应用领域。,,瑞泰REDEL及科沃COELVER品牌被广泛应用于医疗仪器、军工、航空、粒子研究、广播通讯和测量检测设备等各种专业场合。,10,,1',
-            'Lemo系列连接器考试,46,60,60,single,雷莫产品的推拉自锁结构属于什么类型的连接方式？,A.螺纹连接|B.推拉自锁|C.卡扣连接|D.焊接连接,B,10,,2',
-            'Lemo系列连接器考试,46,60,60,multiple,以下哪些是雷莫产品的特点？,A.推拉自锁结构|B.模块式设计|C.360°屏蔽保护|D.精密制造、性能可靠,"A,B,C,D",10,,3',
-            'Lemo系列连接器考试,46,60,60,truefalse,雷莫产品的K系列防护等级为室外IP66/IP68。,A.正确|B.错误,A,10,,4',
-            'Lemo系列连接器考试,46,60,60,fill_blank,雷莫产品由（外壳）、（胶芯）和（中心导体）三部分组成。,,"外壳,胶芯,中心导体",10,,5',
-            'Lemo系列连接器考试,46,60,60,fill_blank,B系列0B尺寸插头开孔为（7mm），插座开孔为（9mm）。,,"7mm,9mm",10,,6',
-            '销售技巧考试,,30,70,single,销售漏斗的第一步是什么？,A.寻找潜在客户|B.需求分析|C.产品演示|D.成交,A,20,,1',
-            '销售技巧考试,,30,70,truefalse,客户异议是销售过程中的障碍。,A.正确|B.错误,B,20,,2',
+            'Lemo系列连接器考试,46,60,60,4,列举出雷莫公司的下属品牌及其产品主要应用领域。,,瑞泰REDEL及科沃COELVER品牌被广泛应用于医疗仪器、军工、航空、粒子研究、广播通讯和测量检测设备等各种专业场合。,10,,1',
+            'Lemo系列连接器考试,46,60,60,1,雷莫产品的推拉自锁结构属于什么类型的连接方式？,A.螺纹连接|B.推拉自锁|C.卡扣连接|D.焊接连接,B,10,,2',
+            'Lemo系列连接器考试,46,60,60,2,以下哪些是雷莫产品的特点？,A.推拉自锁结构|B.模块式设计|C.360°屏蔽保护|D.精密制造、性能可靠,"A,B,C,D",10,,3',
+            'Lemo系列连接器考试,46,60,60,3,雷莫产品的K系列防护等级为室外IP66/IP68。,A.正确|B.错误,A,10,,4',
+            'Lemo系列连接器考试,46,60,60,5,雷莫产品由（外壳）、（胶芯）和（中心导体）三部分组成。,,"外壳,胶芯,中心导体",10,,5',
+            'Lemo系列连接器考试,46,60,60,5,B系列0B尺寸插头开孔为（7mm），插座开孔为（9mm）。,,"7mm,9mm",10,,6',
+            '销售技巧考试,,30,70,1,销售漏斗的第一步是什么？,A.寻找潜在客户|B.需求分析|C.产品演示|D.成交,A,20,,1',
+            '销售技巧考试,,30,70,3,客户异议是销售过程中的障碍。,A.正确|B.错误,B,20,,2',
         ];
 
         $csv = implode("\n", $lines) . "\n";
@@ -1909,8 +1909,9 @@ class AdminController extends Controller
                         }
 
                         // 题型验证
-                        if (!in_array($type, ['single', 'multiple', 'truefalse', 'short_answer', 'fill_blank'])) {
-                            throw new \Exception('题型必须是 single、multiple、truefalse、short_answer 或 fill_blank');
+                        $type = intval($type);
+                        if (!in_array($type, [1, 2, 3, 4, 5])) {
+                            throw new \Exception('题型必须是 1(单选)、2(多选)、3(判断)、4(简答) 或 5(填空)');
                         }
 
                         // 分值验证
@@ -1921,7 +1922,7 @@ class AdminController extends Controller
 
                         // 选项解析
                         $options = null;
-                        if (in_array($type, ['single', 'multiple', 'truefalse']) && $optionsStr) {
+                        if (in_array($type, [1, 2, 3]) && $optionsStr) {
                             $options = [];
                             $optionParts = explode('|', $optionsStr);
                             foreach ($optionParts as $part) {
@@ -1936,10 +1937,9 @@ class AdminController extends Controller
                         }
 
                         // 正确答案处理
-                        if ($type === 'fill_blank') {
-                            // 填空题：逗号分隔转JSON数组
+                        if ($type === 5) { // 填空题
                             $correctAnswer = json_encode(array_map('trim', explode(',', $correctAnswer)));
-                        } elseif ($type === 'short_answer') {
+                        } elseif ($type === 4) { // 简答题
                             $correctAnswer = $correctAnswer ?: null;
                         }
 

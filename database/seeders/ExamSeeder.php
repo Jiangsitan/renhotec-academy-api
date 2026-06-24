@@ -20,7 +20,7 @@ class ExamSeeder extends Seeder
             [
                 'exam_id' => $firstExam->id,
                 'course_id' => $firstExam->course_id,
-                'type' => 'single',
+                'type' => 1, // 单选题
                 'content' => 'Renhotec 的核心价值观包括以下哪些？',
                 'options' => json_encode([
                     ['key' => 'A', 'value' => '客户至上'],
@@ -35,7 +35,7 @@ class ExamSeeder extends Seeder
             [
                 'exam_id' => $firstExam->id,
                 'course_id' => $firstExam->course_id,
-                'type' => 'multiple',
+                'type' => 2, // 多选题
                 'content' => '以下哪些是公司提倡的工作态度？（多选）',
                 'options' => json_encode([
                     ['key' => 'A', 'value' => '积极主动'],
@@ -50,7 +50,7 @@ class ExamSeeder extends Seeder
             [
                 'exam_id' => $firstExam->id,
                 'course_id' => $firstExam->course_id,
-                'type' => 'truefalse',
+                'type' => 3, // 判断题
                 'content' => '公司鼓励员工在工作中勇于创新、拥抱变化。',
                 'options' => json_encode([
                     ['key' => 'A', 'value' => '正确'],
@@ -63,7 +63,7 @@ class ExamSeeder extends Seeder
             [
                 'exam_id' => $firstExam->id,
                 'course_id' => $firstExam->course_id,
-                'type' => 'short_answer',
+                'type' => 4, // 简答题
                 'content' => '请简述你对公司企业文化的理解，以及你将如何在工作中践行。',
                 'options' => null,
                 'correct_answer' => '参考答案：企业文化是以客户为中心、持续创新、团队协作、追求卓越。在工作中应积极主动、与同事互助、不断学习提升。',
