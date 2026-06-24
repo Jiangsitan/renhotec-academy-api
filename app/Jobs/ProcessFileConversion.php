@@ -31,13 +31,13 @@ class ProcessFileConversion implements ShouldQueue
 
         try {
             $compressService = app(DocumentCompressService::class);
-            $pdfPath = $compressService->compress($this->path);
+            $result = $compressService->compress($this->path);
 
-            if ($pdfPath) {
-                // 更新数据库
-                $this->updateDatabase($this->path, $pdfPath, 'pdf', null);
+            if ($result) {
+                // 更新数据库（包含文件大小）
+                $this->updateDatabase($this->path, $result['path'], 'pdf', null, $result['size']);
 
-                Log::info("文件处理完成: {$this->fileName} -> {$pdfPath}");
+                Log::info("文件处理完成: {$this->fileName} -> {$result['path']} ({$result['size']} bytes)");
             } else {
                 // 压缩失败，保留原文件，更新 content_type 为 pdf（兜底）
                 Log::warning("文件压缩失败，保留原文件: {$this->fileName}");
@@ -57,24 +57,37 @@ class ProcessFileConversion implements ShouldQueue
     /**
      * 更新数据库中的文件信息
      */
-    private function updateDatabase(string $oldPath, string $newPath, string $contentType, ?array $images): void
+    private function updateDatabase(string $oldPath, string $newPath, string $contentType, ?array $images, ?int $fileSize = null): void
     {
         // 更新课程表
-        $courseUpdated = Course::where('content_url', $oldPath)->update([
+        $courseUpdateData = [
             'content_url' => $newPath,
             'content_type' => $contentType,
             'images' => $images ? json_encode($images) : null,
-        ]);
+        ];
+        
+        if ($fileSize !== null) {
+            $courseUpdateData['file_size'] = $fileSize;
+        }
+        
+        $courseUpdated = Course::where('content_url', $oldPath)->update($courseUpdateData);
 
         // 更新附件表
-        $attachmentUpdated = Attachment::where('file_path', $oldPath)->update([
+        $attachmentUpdateData = [
             'file_path' => $newPath,
-        ]);
+        ];
+        
+        if ($fileSize !== null) {
+            $attachmentUpdateData['file_size'] = $fileSize;
+        }
+        
+        $attachmentUpdated = Attachment::where('file_path', $oldPath)->update($attachmentUpdateData);
 
         Log::info("数据库已更新", [
             'old_path' => $oldPath,
             'new_path' => $newPath,
             'content_type' => $contentType,
+            'file_size' => $fileSize,
             'courses_updated' => $courseUpdated,
             'attachments_updated' => $attachmentUpdated,
         ]);
