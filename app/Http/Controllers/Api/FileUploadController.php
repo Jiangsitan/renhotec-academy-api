@@ -424,18 +424,31 @@ class FileUploadController extends Controller
             'part_number' => 'required|integer|min:1|max:10000',
         ]);
 
-        $client = OssHelper::getClient();
+        $accessKeyId = config('filesystems.disks.oss.access_key_id');
+        $accessKeySecret = config('filesystems.disks.oss.access_key_secret');
         $bucket = OssHelper::getBucket();
+        $endpoint = config('filesystems.disks.oss.endpoint');
+        $path = $request->input('oss_path');
+        $uploadId = $request->input('upload_id');
+        $partNumber = $request->input('part_number');
+        $expires = time() + 3600;
 
-        $signedUrl = $client->signUrl(
+        // 手动构造签名（OSS Signature V1）
+        // StringToSign = PUT\n\nContent-Type\nExpires\nResource
+        $resource = "/{$bucket}/{$path}?partNumber={$partNumber}&uploadId={$uploadId}";
+        $stringToSign = "PUT\n\napplication/octet-stream\n{$expires}\n{$resource}";
+        $signature = base64_encode(hash_hmac('sha1', $stringToSign, $accessKeySecret, true));
+
+        $signedUrl = sprintf(
+            'https://%s.%s/%s?partNumber=%d&uploadId=%s&Expires=%d&OSSAccessKeyId=%s&Signature=%s',
             $bucket,
-            $request->input('oss_path'),
-            3600,
-            'PUT',
-            [
-                'uploadId' => $request->input('upload_id'),
-                'partNumber' => $request->input('part_number'),
-            ]
+            $endpoint,
+            $path,
+            $partNumber,
+            $uploadId,
+            $expires,
+            $accessKeyId,
+            urlencode($signature)
         );
 
         return response()->json([
