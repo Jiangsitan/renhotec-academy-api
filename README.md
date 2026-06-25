@@ -1,8 +1,22 @@
 # Renhotec Academy - 后端 API
 
-## 项目概述
+> Renhotec Academy 后端 API 是基于 Laravel 13 构建的 RESTful API 服务，为前端应用提供数据接口。
 
-Renhotec Academy 后端 API 是基于 Laravel 13 构建的 RESTful API 服务，为前端应用提供数据接口。
+## 目录
+
+- [技术栈](#技术栈)
+- [项目结构](#项目结构)
+- [API 控制器](#api-控制器)
+- [数据模型](#数据模型)
+- [环境变量](#环境变量)
+- [API 路由概览](#api-路由概览)
+- [常用命令](#常用命令)
+- [测试](#测试)
+- [数据库迁移](#数据库迁移)
+- [部署](#部署)
+- [项目打包](#项目打包)
+- [联系方式](#联系方式)
+- [相关链接](#相关链接)
 
 ## 技术栈
 
@@ -363,4 +377,9 @@ php artisan view:clear
 
 - 项目负责人：Lucas Jay
 - 邮箱：2434624535@qq.com
-- 文档更新日期：2026-06-11
+- 文档更新日期：2026-06-24
+
+## 相关链接
+
+- [Renhotec Academy 前端](https://github.com/Jiangsitan/renhotec-academy-nuxt)
+- [Renhotec Academy 主仓库](https://github.com/Jiangsitan/renhotec-academy)
