@@ -46,8 +46,8 @@ class OssHelper
      */
     public static function url(string $path): string
     {
-        $domain = env('OSS_CDN_DOMAIN', 'rh-wh.oss-cn-shanghai.aliyuncs.com');
-        $ssl = env('OSS_SSL', true);
+        $domain = config('filesystems.disks.oss.cdn_domain', 'rh-wh.oss-cn-shanghai.aliyuncs.com');
+        $ssl = config('filesystems.disks.oss.ssl', true);
         $protocol = $ssl ? 'https' : 'http';
         return $protocol . '://' . $domain . '/' . $path;
     }
@@ -58,9 +58,9 @@ class OssHelper
     public static function getClient(): \OSS\OssClient
     {
         $client = new \OSS\OssClient(
-            env('OSS_ACCESS_KEY_ID'),
-            env('OSS_ACCESS_KEY_SECRET'),
-            env('OSS_ENDPOINT')
+            config('filesystems.disks.oss.access_key_id'),
+            config('filesystems.disks.oss.access_key_secret'),
+            config('filesystems.disks.oss.endpoint')
         );
         $client->setTimeout(300); // 5 分钟超时
         $client->setConnectTimeout(30); // 30 秒连接超时
@@ -72,6 +72,6 @@ class OssHelper
      */
     public static function getBucket(): string
     {
-        return env('OSS_BUCKET', 'rh-wh');
+        return config('filesystems.disks.oss.bucket', 'rh-wh');
     }
 }
