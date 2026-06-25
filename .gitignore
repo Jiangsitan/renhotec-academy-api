@@ -27,3 +27,5 @@ Homestead.yaml
 Thumbs.db
 .env.dev
 .env.docker
+.env.dev
+.env.docker
