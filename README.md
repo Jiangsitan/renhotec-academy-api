@@ -383,3 +383,13 @@ php artisan view:clear
 
 - [Renhotec Academy 前端](https://github.com/Jiangsitan/renhotec-academy-nuxt)
 - [Renhotec Academy 主仓库](https://github.com/Jiangsitan/renhotec-academy)
+
+---
+
+## 许可证
+
+版权所有 (c) 2026 Renhotec
+
+本项目为私有软件，未经授权不得使用、复制、修改或分发。
+
+未经授权的使用、复制、修改或分发本软件的任何部分，均构成违法行为。
