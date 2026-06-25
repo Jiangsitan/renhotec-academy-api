@@ -433,10 +433,9 @@ class FileUploadController extends Controller
         $partNumber = $request->input('part_number');
         $expires = time() + 3600;
 
-        // 手动构造签名（OSS Signature V1）
-        // StringToSign = PUT\n\nContent-Type\nExpires\nResource
+        // 手动构造签名（OSS Signature V1，presigned PUT URL 不含 Content-Type）
         $resource = "/{$bucket}/{$path}?partNumber={$partNumber}&uploadId={$uploadId}";
-        $stringToSign = "PUT\n\napplication/octet-stream\n{$expires}\n{$resource}";
+        $stringToSign = "PUT\n\n\n{$expires}\n{$resource}";
         $signature = base64_encode(hash_hmac('sha1', $stringToSign, $accessKeySecret, true));
 
         $signedUrl = sprintf(
