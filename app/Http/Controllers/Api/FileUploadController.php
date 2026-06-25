@@ -348,4 +348,199 @@ class FileUploadController extends Controller
 
         return response()->json(['message' => '已取消']);
     }
+
+    // ==================== OSS 直传 ====================
+
+    /**
+     * 生成 OSS 签名 PUT URL（小文件直传）
+     */
+    public function presign(Request $request): JsonResponse
+    {
+        $request->validate([
+            'file_name' => 'required|string|max:255',
+            'file_size' => 'required|integer|min:1|max:1073741824', // 最大 1GB
+            'type' => 'required|in:video,document,image,attachment,cover,logo',
+        ]);
+
+        $extension = pathinfo($request->input('file_name'), PATHINFO_EXTENSION);
+        $fileName = time() . '_' . Str::random(10) . '.' . $extension;
+        $path = OssHelper::path($request->input('type'), $fileName);
+
+        $client = OssHelper::getClient();
+        $bucket = OssHelper::getBucket();
+
+        // 生成签名 URL（PUT 方法，1小时有效）
+        $signedUrl = $client->signUrl($bucket, $path, 3600, 'PUT');
+
+        return response()->json([
+            'data' => [
+                'upload_url' => $signedUrl,
+                'oss_path' => $path,
+                'file_name' => $request->input('file_name'),
+                'file_size' => $request->input('file_size'),
+            ],
+        ]);
+    }
+
+    /**
+     * 初始化 Multipart Upload（大文件分片直传）
+     */
+    public function multipartInit(Request $request): JsonResponse
+    {
+        $request->validate([
+            'file_name' => 'required|string|max:255',
+            'file_size' => 'required|integer|min:1|max:10737418240', // 最大 10GB
+            'type' => 'required|in:video,document',
+        ]);
+
+        $extension = pathinfo($request->input('file_name'), PATHINFO_EXTENSION);
+        $fileName = time() . '_' . Str::random(10) . '.' . $extension;
+        $path = OssHelper::path($request->input('type'), $fileName);
+
+        $client = OssHelper::getClient();
+        $bucket = OssHelper::getBucket();
+
+        // 初始化 Multipart Upload
+        $uploadId = $client->initiateMultipartUpload($bucket, $path);
+
+        return response()->json([
+            'data' => [
+                'upload_id' => $uploadId,
+                'oss_path' => $path,
+                'file_name' => $request->input('file_name'),
+                'file_size' => $request->input('file_size'),
+            ],
+        ]);
+    }
+
+    /**
+     * 为 Multipart Upload 的单个分片生成签名 URL
+     */
+    public function multipartSign(Request $request): JsonResponse
+    {
+        $request->validate([
+            'upload_id' => 'required|string',
+            'oss_path' => 'required|string',
+            'part_number' => 'required|integer|min:1|max:10000',
+        ]);
+
+        $client = OssHelper::getClient();
+        $bucket = OssHelper::getBucket();
+
+        $signedUrl = $client->signUrl(
+            $bucket,
+            $request->input('oss_path'),
+            3600,
+            'PUT',
+            [
+                'uploadId' => $request->input('upload_id'),
+                'partNumber' => $request->input('part_number'),
+            ]
+        );
+
+        return response()->json([
+            'data' => [
+                'signed_url' => $signedUrl,
+                'part_number' => $request->input('part_number'),
+            ],
+        ]);
+    }
+
+    /**
+     * 完成 Multipart Upload（OSS 云端合并）
+     */
+    public function multipartComplete(Request $request): JsonResponse
+    {
+        $request->validate([
+            'upload_id' => 'required|string',
+            'oss_path' => 'required|string',
+            'parts' => 'required|array|min:1',
+            'parts.*.part_number' => 'required|integer',
+            'parts.*.etag' => 'required|string',
+        ]);
+
+        $client = OssHelper::getClient();
+        $bucket = OssHelper::getBucket();
+
+        $parts = collect($request->input('parts'))
+            ->sortBy('part_number')
+            ->map(fn($p) => ['PartNumber' => $p['part_number'], 'ETag' => $p['etag']])
+            ->values()
+            ->toArray();
+
+        $client->completeMultipartUpload(
+            $bucket,
+            $request->input('oss_path'),
+            $request->input('upload_id'),
+            $parts
+        );
+
+        return response()->json([
+            'data' => [
+                'oss_path' => $request->input('oss_path'),
+                'status' => 'completed',
+            ],
+        ]);
+    }
+
+    /**
+     * OSS 上传完成通知（触发后处理：WebP/PDF/WebM 转换）
+     */
+    public function ossUploadComplete(Request $request): JsonResponse
+    {
+        $request->validate([
+            'oss_path' => 'required|string',
+            'file_name' => 'required|string|max:255',
+            'file_size' => 'required|integer|min:1',
+            'type' => 'required|in:video,document,image,attachment,cover,logo',
+        ]);
+
+        $path = $request->input('oss_path');
+        $fileName = $request->input('file_name');
+        $type = $request->input('type');
+
+        // 验证文件是否存在于 OSS
+        if (!Storage::disk('oss')->exists($path)) {
+            return response()->json(['message' => '文件不存在于 OSS'], 422);
+        }
+
+        $mimeType = Storage::disk('oss')->mimeType($path);
+
+        // 图片转 WebP（同步）
+        if (str_starts_with($mimeType ?? '', 'image/') && $mimeType !== 'image/webp') {
+            $webpPath = $this->convertToWebp($path);
+            if ($webpPath) {
+                $path = $webpPath;
+            }
+        }
+
+        // 视频转 WebM（异步）
+        if (str_starts_with($mimeType ?? '', 'video/') && $mimeType !== 'video/webm') {
+            ProcessVideoConversion::dispatch($path, $fileName);
+        }
+
+        // 文档压缩（异步）
+        $contentType = 'pdf';
+        $images = null;
+        $needsCompression = DocumentCompressService::needsCompression($fileName);
+
+        if ($needsCompression) {
+            ProcessFileConversion::dispatch($path, $fileName);
+            $contentType = null;
+            $images = null;
+        }
+
+        return response()->json([
+            'data' => [
+                'url' => OssHelper::url($path),
+                'path' => $path,
+                'file_name' => $fileName,
+                'file_size' => $request->input('file_size'),
+                'mime_type' => $mimeType,
+                'content_type' => $contentType,
+                'images' => $images,
+                'converting' => $needsCompression,
+            ],
+        ]);
+    }
 }

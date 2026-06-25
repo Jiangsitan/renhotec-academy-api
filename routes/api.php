@@ -176,7 +176,7 @@ Route::middleware('auth.api')->group(function () {
         Route::get('/settings', [AdminController::class, 'getSettings']);
         Route::put('/settings', [AdminController::class, 'updateSettings']);
 
-        // 文件上传
+        // 文件上传（旧接口，保留兼容）
         Route::post('/upload/file', [FileUploadController::class, 'uploadFile']);
         Route::post('/upload/init', [FileUploadController::class, 'uploadInit']);
         Route::post('/upload/chunk', [FileUploadController::class, 'uploadChunk']);
@@ -184,5 +184,12 @@ Route::middleware('auth.api')->group(function () {
         Route::get('/upload/{uploadId}/status', [FileUploadController::class, 'uploadStatus']);
         Route::get('/upload/conversion-status', [FileUploadController::class, 'conversionStatus']);
         Route::delete('/upload/{uploadId}/cancel', [FileUploadController::class, 'cancelUpload']);
+
+        // OSS 直传
+        Route::post('/upload/presign', [FileUploadController::class, 'presign']);
+        Route::post('/upload/multipart/init', [FileUploadController::class, 'multipartInit']);
+        Route::post('/upload/multipart/sign', [FileUploadController::class, 'multipartSign']);
+        Route::post('/upload/multipart/complete', [FileUploadController::class, 'multipartComplete']);
+        Route::post('/upload/oss-complete', [FileUploadController::class, 'ossUploadComplete']);
     });
 });
