@@ -2420,6 +2420,250 @@
           }
         }
       }
+    },
+    "/admin/upload/presign": {
+      "post": {
+        "tags": ["管理后台-OSS直传"],
+        "summary": "生成签名URL（小文件直传）",
+        "description": "为小文件生成OSS签名PUT URL，前端直接上传到OSS",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["file_name", "file_size", "type"],
+                "properties": {
+                  "file_name": { "type": "string", "description": "文件名" },
+                  "file_size": { "type": "integer", "description": "文件大小（字节）" },
+                  "type": { "type": "string", "enum": ["video", "document", "image", "attachment", "cover", "logo"], "description": "文件类型" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "upload_url": { "type": "string", "description": "签名上传URL" },
+                        "oss_path": { "type": "string", "description": "OSS路径" },
+                        "file_name": { "type": "string", "description": "文件名" },
+                        "file_size": { "type": "integer", "description": "文件大小" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/upload/multipart/init": {
+      "post": {
+        "tags": ["管理后台-OSS直传"],
+        "summary": "初始化Multipart Upload",
+        "description": "大文件分片上传：初始化Multipart Upload，获取uploadId",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["file_name", "file_size", "type"],
+                "properties": {
+                  "file_name": { "type": "string", "description": "文件名" },
+                  "file_size": { "type": "integer", "description": "文件大小（字节）" },
+                  "type": { "type": "string", "enum": ["video", "document"], "description": "文件类型" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "upload_id": { "type": "string", "description": "Multipart Upload ID" },
+                        "oss_path": { "type": "string", "description": "OSS路径" },
+                        "file_name": { "type": "string", "description": "文件名" },
+                        "file_size": { "type": "integer", "description": "文件大小" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/upload/multipart/sign": {
+      "post": {
+        "tags": ["管理后台-OSS直传"],
+        "summary": "生成分片签名URL",
+        "description": "为Multipart Upload的单个分片生成签名URL",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["upload_id", "oss_path", "part_number"],
+                "properties": {
+                  "upload_id": { "type": "string", "description": "Multipart Upload ID" },
+                  "oss_path": { "type": "string", "description": "OSS路径" },
+                  "part_number": { "type": "integer", "description": "分片编号（从1开始）" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "signed_url": { "type": "string", "description": "分片签名URL" },
+                        "part_number": { "type": "integer", "description": "分片编号" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/upload/multipart/complete": {
+      "post": {
+        "tags": ["管理后台-OSS直传"],
+        "summary": "完成Multipart Upload",
+        "description": "调用OSS completeMultipartUpload，云端合并分片",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["upload_id", "oss_path", "parts"],
+                "properties": {
+                  "upload_id": { "type": "string", "description": "Multipart Upload ID" },
+                  "oss_path": { "type": "string", "description": "OSS路径" },
+                  "parts": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "part_number": { "type": "integer", "description": "分片编号" },
+                        "etag": { "type": "string", "description": "分片ETag" }
+                      }
+                    },
+                    "description": "分片列表"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "oss_path": { "type": "string", "description": "OSS路径" },
+                        "status": { "type": "string", "description": "状态" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/upload/oss-complete": {
+      "post": {
+        "tags": ["管理后台-OSS直传"],
+        "summary": "OSS上传完成通知",
+        "description": "通知后端文件已上传到OSS，触发后处理（WebP/PDF/WebM转换）",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["oss_path", "file_name", "file_size", "type"],
+                "properties": {
+                  "oss_path": { "type": "string", "description": "OSS路径" },
+                  "file_name": { "type": "string", "description": "文件名" },
+                  "file_size": { "type": "integer", "description": "文件大小" },
+                  "type": { "type": "string", "enum": ["video", "document", "image", "attachment", "cover", "logo"], "description": "文件类型" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "url": { "type": "string", "description": "文件URL" },
+                        "path": { "type": "string", "description": "OSS路径" },
+                        "file_name": { "type": "string", "description": "文件名" },
+                        "file_size": { "type": "integer", "description": "文件大小" },
+                        "content_type": { "type": "string", "nullable": true, "description": "内容类型" },
+                        "converting": { "type": "boolean", "description": "是否正在转换" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }
