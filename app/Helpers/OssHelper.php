@@ -64,6 +64,7 @@ class OssHelper
         );
         $client->setTimeout(300); // 5 分钟超时
         $client->setConnectTimeout(30); // 30 秒连接超时
+        $client->setUseSSL(true); // 强制使用 HTTPS
         return $client;
     }
 
