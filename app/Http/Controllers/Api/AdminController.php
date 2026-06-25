@@ -166,7 +166,13 @@ class AdminController extends Controller
             'hire_date' => 'nullable|date',
             'trial_end_date' => 'nullable|date',
             'mentor_id' => 'nullable|exists:users,id',
+            'role' => 'sometimes|in:student,mentor,admin',
         ]);
+
+        // 只有管理员可以修改角色
+        if (isset($validated['role']) && $request->user()->role->value !== 'admin') {
+            unset($validated['role']);
+        }
 
         $mentorId = $validated['mentor_id'] ?? null;
         unset($validated['mentor_id']);
