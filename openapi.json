@@ -1,0 +1,2425 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Renhotec Academy API",
+    "description": "Renhotec Academy 学习平台 API 文档",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Renhotec Academy"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://learn.renhotec.cn/api",
+      "description": "生产环境"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "description": "用户ID" },
+          "name": { "type": "string", "description": "用户姓名" },
+          "employee_no": { "type": "string", "description": "工号" },
+          "email": { "type": "string", "description": "邮箱" },
+          "phone": { "type": "string", "description": "手机号" },
+          "department": { "type": "string", "description": "部门" },
+          "position": { "type": "string", "description": "职位" },
+          "role": { "type": "string", "enum": ["student", "mentor", "admin"], "description": "角色" },
+          "status": { "type": "string", "enum": ["active", "inactive", "trial"], "description": "状态" },
+          "hire_date": { "type": "string", "format": "date", "description": "入职日期" },
+          "trial_end_date": { "type": "string", "format": "date", "description": "试用期结束日期" }
+        }
+      },
+      "Category": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "description": "分类ID" },
+          "name": { "type": "string", "description": "分类名称" },
+          "parent_id": { "type": "integer", "nullable": true, "description": "父分类ID" },
+          "sort_order": { "type": "integer", "description": "排序" }
+        }
+      },
+      "Series": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "description": "系列ID" },
+          "name": { "type": "string", "description": "系列名称" },
+          "description": { "type": "string", "description": "系列描述" },
+          "category_id": { "type": "integer", "description": "分类ID" },
+          "cover_image": { "type": "string", "description": "封面图片URL" },
+          "sort_order": { "type": "integer", "description": "排序" },
+          "status": { "type": "string", "enum": ["draft", "published", "archived"], "description": "状态" }
+        }
+      },
+      "Course": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "description": "课程ID" },
+          "title": { "type": "string", "description": "课程标题" },
+          "description": { "type": "string", "description": "课程描述" },
+          "category_id": { "type": "integer", "description": "分类ID" },
+          "series_id": { "type": "integer", "description": "系列ID" },
+          "mentor_id": { "type": "integer", "nullable": true, "description": "导师ID" },
+          "type": { "type": "string", "enum": ["video", "document", "link"], "description": "类型" },
+          "content_source": { "type": "string", "enum": ["online", "local"], "description": "内容来源" },
+          "content_url": { "type": "string", "description": "内容URL" },
+          "content_type": { "type": "string", "description": "内容类型" },
+          "images": { "type": "string", "description": "图片列表JSON" },
+          "cover_image": { "type": "string", "description": "封面图片URL" },
+          "file_name": { "type": "string", "description": "原始文件名" },
+          "file_size": { "type": "integer", "description": "文件大小(字节)" },
+          "min_read_time": { "type": "integer", "description": "最少阅读时间(分钟)" },
+          "duration": { "type": "integer", "description": "视频时长(秒)" },
+          "status": { "type": "string", "enum": ["draft", "published", "archived"], "description": "状态" },
+          "sort_order": { "type": "integer", "description": "排序" }
+        }
+      },
+      "Exam": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "description": "考试ID" },
+          "title": { "type": "string", "description": "考试标题" },
+          "time_limit": { "type": "integer", "description": "考试时长(分钟)" },
+          "passing_score": { "type": "number", "format": "decimal", "description": "及格分数" },
+          "status": { "type": "string", "enum": ["draft", "active", "archived"], "description": "状态" }
+        }
+      },
+      "Question": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "description": "题目ID" },
+          "exam_id": { "type": "integer", "description": "考试ID" },
+          "course_id": { "type": "integer", "nullable": true, "description": "关联课程ID" },
+          "type": { "type": "integer", "enum": [1, 2, 3, 4, 5], "description": "题型: 1=单选, 2=多选, 3=判断, 4=简答, 5=填空" },
+          "content": { "type": "string", "description": "题目内容" },
+          "options": { "type": "array", "items": { "type": "object" }, "description": "选项" },
+          "correct_answer": { "type": "string", "description": "正确答案" },
+          "score": { "type": "number", "format": "decimal", "description": "分值" },
+          "sort_order": { "type": "integer", "description": "排序" }
+        }
+      },
+      "ExamRecord": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "description": "考试记录ID" },
+          "user_id": { "type": "integer", "description": "用户ID" },
+          "exam_id": { "type": "integer", "description": "考试ID" },
+          "answers": { "type": "array", "description": "答题详情" },
+          "objective_score": { "type": "number", "format": "decimal", "description": "客观题得分" },
+          "subjective_score": { "type": "number", "format": "decimal", "description": "主观题得分" },
+          "total_score": { "type": "number", "format": "decimal", "description": "总分" },
+          "status": { "type": "string", "enum": ["in_progress", "submitted", "auto_graded", "pending_review", "graded", "rejected"], "description": "状态" },
+          "submitted_at": { "type": "string", "format": "datetime", "description": "提交时间" },
+          "graded_at": { "type": "string", "format": "datetime", "description": "评分时间" },
+          "graded_by": { "type": "integer", "nullable": true, "description": "评分人ID" },
+          "assigned_to": { "type": "integer", "nullable": true, "description": "分配批改人ID" },
+          "assignment_note": { "type": "string", "description": "分配备注" },
+          "mentor_comment": { "type": "string", "description": "导师评语" }
+        }
+      },
+      "Attachment": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "description": "附件ID" },
+          "course_id": { "type": "integer", "description": "课程ID" },
+          "file_name": { "type": "string", "description": "文件名" },
+          "file_path": { "type": "string", "description": "文件路径" },
+          "file_size": { "type": "integer", "description": "文件大小(字节)" },
+          "mime_type": { "type": "string", "description": "MIME类型" },
+          "download_count": { "type": "integer", "description": "下载次数" }
+        }
+      },
+      "Comment": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "description": "评论ID" },
+          "series_id": { "type": "integer", "description": "系列ID" },
+          "user_id": { "type": "integer", "description": "用户ID" },
+          "parent_id": { "type": "integer", "nullable": true, "description": "父评论ID" },
+          "content": { "type": "string", "description": "评论内容" },
+          "likes_count": { "type": "integer", "description": "点赞数" }
+        }
+      },
+      "Notification": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "description": "通知ID" },
+          "user_id": { "type": "integer", "description": "用户ID" },
+          "type": { "type": "string", "description": "通知类型" },
+          "title": { "type": "string", "description": "通知标题" },
+          "content": { "type": "string", "description": "通知内容" },
+          "is_read": { "type": "boolean", "description": "是否已读" }
+        }
+      },
+      "LearningProgress": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "description": "进度ID" },
+          "user_id": { "type": "integer", "description": "用户ID" },
+          "course_id": { "type": "integer", "description": "课程ID" },
+          "is_completed": { "type": "boolean", "description": "是否完成" },
+          "progress_percentage": { "type": "number", "format": "decimal", "description": "进度百分比" },
+          "total_learning_time": { "type": "integer", "description": "总学习时间(秒)" },
+          "last_position_seconds": { "type": "integer", "description": "最后播放位置(秒)" },
+          "completed_at": { "type": "string", "format": "datetime", "description": "完成时间" }
+        }
+      },
+      "Setting": {
+        "type": "object",
+        "properties": {
+          "key": { "type": "string", "description": "配置键" },
+          "value": { "type": "string", "description": "配置值" },
+          "group": { "type": "string", "description": "配置分组" }
+        }
+      },
+      "AuditLog": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "description": "日志ID" },
+          "user_id": { "type": "integer", "description": "用户ID" },
+          "action_type": { "type": "string", "description": "操作类型" },
+          "target_type": { "type": "string", "description": "目标类型" },
+          "target_id": { "type": "integer", "description": "目标ID" },
+          "ip_address": { "type": "string", "description": "IP地址" },
+          "user_agent": { "type": "string", "description": "用户代理" },
+          "extra_data": { "type": "object", "description": "额外数据" },
+          "created_at": { "type": "string", "format": "datetime", "description": "创建时间" }
+        }
+      },
+      "MentorStudent": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "description": "绑定ID" },
+          "mentor_id": { "type": "integer", "description": "导师ID" },
+          "student_id": { "type": "integer", "description": "学员ID" },
+          "status": { "type": "string", "enum": ["active", "inactive"], "description": "状态" }
+        }
+      }
+    }
+  },
+  "security": [
+    { "bearerAuth": [] }
+  ],
+  "paths": {
+    "/login": {
+      "post": {
+        "tags": ["认证"],
+        "summary": "用户登录",
+        "description": "用户登录获取访问令牌",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["employee_no", "password"],
+                "properties": {
+                  "employee_no": { "type": "string", "description": "工号" },
+                  "password": { "type": "string", "description": "密码" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "登录成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "token": { "type": "string", "description": "访问令牌" },
+                        "user": { "$ref": "#/components/schemas/User" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/logout": {
+      "post": {
+        "tags": ["认证"],
+        "summary": "用户登出",
+        "description": "用户登出，令牌失效",
+        "responses": {
+          "200": {
+            "description": "登出成功"
+          }
+        }
+      }
+    },
+    "/me": {
+      "get": {
+        "tags": ["认证"],
+        "summary": "获取当前用户信息",
+        "description": "获取当前登录用户的详细信息",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": { "$ref": "#/components/schemas/User" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings": {
+      "get": {
+        "tags": ["系统设置"],
+        "summary": "获取系统设置",
+        "description": "获取公开的系统设置",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/homepage": {
+      "get": {
+        "tags": ["首页"],
+        "summary": "获取首页数据",
+        "description": "获取首页展示的统计数据和推荐内容",
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/categories": {
+      "get": {
+        "tags": ["课程分类"],
+        "summary": "获取分类列表",
+        "description": "获取所有课程分类",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Category" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/series": {
+      "get": {
+        "tags": ["课程系列"],
+        "summary": "获取系列列表",
+        "description": "获取课程系列列表",
+        "parameters": [
+          { "name": "category_id", "in": "query", "schema": { "type": "integer" }, "description": "分类ID" },
+          { "name": "page", "in": "query", "schema": { "type": "integer" }, "description": "页码" },
+          { "name": "per_page", "in": "query", "schema": { "type": "integer" }, "description": "每页数量" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/series/{series}": {
+      "get": {
+        "tags": ["课程系列"],
+        "summary": "获取系列详情",
+        "description": "获取指定系列的详细信息和课程列表",
+        "parameters": [
+          { "name": "series", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "系列ID" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/courses": {
+      "get": {
+        "tags": ["课程"],
+        "summary": "获取课程列表",
+        "description": "获取课程列表",
+        "parameters": [
+          { "name": "series_id", "in": "query", "schema": { "type": "integer" }, "description": "系列ID" },
+          { "name": "category_id", "in": "query", "schema": { "type": "integer" }, "description": "分类ID" },
+          { "name": "page", "in": "query", "schema": { "type": "integer" }, "description": "页码" },
+          { "name": "per_page", "in": "query", "schema": { "type": "integer" }, "description": "每页数量" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/courses/{course}": {
+      "get": {
+        "tags": ["课程"],
+        "summary": "获取课程详情",
+        "description": "获取指定课程的详细信息",
+        "parameters": [
+          { "name": "course", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "课程ID" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": { "$ref": "#/components/schemas/Course" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/learning/progress/sync": {
+      "post": {
+        "tags": ["学习进度"],
+        "summary": "同步学习进度",
+        "description": "同步学员的学习进度",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["course_id"],
+                "properties": {
+                  "course_id": { "type": "integer", "description": "课程ID" },
+                  "progress_percentage": { "type": "number", "description": "进度百分比" },
+                  "total_learning_time": { "type": "integer", "description": "总学习时间(秒)" },
+                  "last_position_seconds": { "type": "integer", "description": "最后播放位置(秒)" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "同步成功"
+          }
+        }
+      }
+    },
+    "/learning/progress/complete": {
+      "post": {
+        "tags": ["学习进度"],
+        "summary": "标记文档完成",
+        "description": "标记文档类课程为已完成",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["course_id"],
+                "properties": {
+                  "course_id": { "type": "integer", "description": "课程ID" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "标记成功"
+          }
+        }
+      }
+    },
+    "/learning/progress/{courseId}": {
+      "get": {
+        "tags": ["学习进度"],
+        "summary": "获取学习进度",
+        "description": "获取指定课程的学习进度",
+        "parameters": [
+          { "name": "courseId", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "课程ID" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": { "$ref": "#/components/schemas/LearningProgress" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/attachments/{attachment}/download": {
+      "get": {
+        "tags": ["附件"],
+        "summary": "下载附件",
+        "description": "获取附件下载链接",
+        "parameters": [
+          { "name": "attachment", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "附件ID" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "download_url": { "type": "string", "description": "下载链接" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/attachments/batch-download": {
+      "post": {
+        "tags": ["附件"],
+        "summary": "批量下载附件",
+        "description": "批量下载附件，返回ZIP文件",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["attachment_ids"],
+                "properties": {
+                  "attachment_ids": {
+                    "type": "array",
+                    "items": { "type": "integer" },
+                    "description": "附件ID列表"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功，返回ZIP文件"
+          }
+        }
+      }
+    },
+    "/series/{series}/comments": {
+      "get": {
+        "tags": ["评论"],
+        "summary": "获取评论列表",
+        "description": "获取指定系列的评论列表",
+        "parameters": [
+          { "name": "series", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "系列ID" },
+          { "name": "page", "in": "query", "schema": { "type": "integer" }, "description": "页码" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      },
+      "post": {
+        "tags": ["评论"],
+        "summary": "发表评论",
+        "description": "在指定系列下发表评论",
+        "parameters": [
+          { "name": "series", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "系列ID" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["content"],
+                "properties": {
+                  "content": { "type": "string", "description": "评论内容" },
+                  "parent_id": { "type": "integer", "description": "父评论ID（回复时）" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "发表成功"
+          }
+        }
+      }
+    },
+    "/comments/{comment}": {
+      "put": {
+        "tags": ["评论"],
+        "summary": "更新评论",
+        "description": "更新评论内容",
+        "parameters": [
+          { "name": "comment", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "评论ID" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["content"],
+                "properties": {
+                  "content": { "type": "string", "description": "评论内容" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["评论"],
+        "summary": "删除评论",
+        "description": "删除指定评论",
+        "parameters": [
+          { "name": "comment", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "评论ID" }
+        ],
+        "responses": {
+          "200": {
+            "description": "删除成功"
+          }
+        }
+      }
+    },
+    "/comments/{comment}/like": {
+      "post": {
+        "tags": ["评论"],
+        "summary": "点赞评论",
+        "description": "点赞或取消点赞评论",
+        "parameters": [
+          { "name": "comment", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "评论ID" }
+        ],
+        "responses": {
+          "200": {
+            "description": "操作成功"
+          }
+        }
+      }
+    },
+    "/series/{series}/mention-users": {
+      "get": {
+        "tags": ["评论"],
+        "summary": "获取可@的用户列表",
+        "description": "获取评论中可@的用户列表",
+        "parameters": [
+          { "name": "series", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "系列ID" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/notifications": {
+      "get": {
+        "tags": ["通知"],
+        "summary": "获取通知列表",
+        "description": "获取当前用户的通知列表",
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer" }, "description": "页码" },
+          { "name": "per_page", "in": "query", "schema": { "type": "integer" }, "description": "每页数量" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/notifications/unread-count": {
+      "get": {
+        "tags": ["通知"],
+        "summary": "获取未读通知数量",
+        "description": "获取当前用户的未读通知数量",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "count": { "type": "integer", "description": "未读数量" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/{notificationId}/read": {
+      "put": {
+        "tags": ["通知"],
+        "summary": "标记通知已读",
+        "description": "标记指定通知为已读",
+        "parameters": [
+          { "name": "notificationId", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "通知ID" }
+        ],
+        "responses": {
+          "200": {
+            "description": "标记成功"
+          }
+        }
+      }
+    },
+    "/notifications/read-all": {
+      "put": {
+        "tags": ["通知"],
+        "summary": "标记所有通知已读",
+        "description": "标记所有通知为已读",
+        "responses": {
+          "200": {
+            "description": "标记成功"
+          }
+        }
+      }
+    },
+    "/exams": {
+      "get": {
+        "tags": ["考试"],
+        "summary": "获取考试列表",
+        "description": "获取可参加的考试列表",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Exam" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/exams/{exam}": {
+      "get": {
+        "tags": ["考试"],
+        "summary": "获取考试详情",
+        "description": "获取考试详情和题目列表",
+        "parameters": [
+          { "name": "exam", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "考试ID" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/exams/{exam}/submit": {
+      "post": {
+        "tags": ["考试"],
+        "summary": "提交考试答卷",
+        "description": "提交考试答卷",
+        "parameters": [
+          { "name": "exam", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "考试ID" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["answers"],
+                "properties": {
+                  "answers": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "question_id": { "type": "integer", "description": "题目ID" },
+                        "answer": { "description": "答案（字符串或数组）" }
+                      }
+                    },
+                    "description": "答案列表"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "提交成功"
+          }
+        }
+      }
+    },
+    "/exams/{exam}/cheat": {
+      "post": {
+        "tags": ["考试"],
+        "summary": "记录作弊行为",
+        "description": "记录考试作弊行为",
+        "parameters": [
+          { "name": "exam", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "考试ID" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["action"],
+                "properties": {
+                  "action": { "type": "string", "description": "作弊行为类型" },
+                  "detail": { "type": "string", "description": "详细信息" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "记录成功"
+          }
+        }
+      }
+    },
+    "/exam-records/{examRecord}": {
+      "get": {
+        "tags": ["考试记录"],
+        "summary": "获取考试记录详情",
+        "description": "获取考试记录详情",
+        "parameters": [
+          { "name": "examRecord", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "考试记录ID" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": { "$ref": "#/components/schemas/ExamRecord" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/exam-records/{examRecord}/wrong-questions": {
+      "get": {
+        "tags": ["考试记录"],
+        "summary": "获取错题列表",
+        "description": "获取考试记录中的错题列表",
+        "parameters": [
+          { "name": "examRecord", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "考试记录ID" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/my-exam-records": {
+      "get": {
+        "tags": ["考试记录"],
+        "summary": "获取我的考试记录",
+        "description": "获取当前用户的考试记录列表",
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer" }, "description": "页码" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/files/preview/{path}": {
+      "get": {
+        "tags": ["文件服务"],
+        "summary": "预览文件",
+        "description": "预览文件（支持PDF、图片等）",
+        "parameters": [
+          { "name": "path", "in": "path", "required": true, "schema": { "type": "string" }, "description": "文件路径" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功，返回文件内容"
+          }
+        }
+      }
+    },
+    "/files/preview-office/{path}": {
+      "get": {
+        "tags": ["文件服务"],
+        "summary": "预览Office文件",
+        "description": "预览Office文件（转换为PDF）",
+        "parameters": [
+          { "name": "path", "in": "path", "required": true, "schema": { "type": "string" }, "description": "文件路径" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/mentor/pending-reviews": {
+      "get": {
+        "tags": ["导师"],
+        "summary": "获取待批改列表",
+        "description": "获取导师待批改的考试记录列表",
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer" }, "description": "页码" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/mentor/review/{examRecord}": {
+      "post": {
+        "tags": ["导师"],
+        "summary": "批改考试",
+        "description": "导师批改考试记录",
+        "parameters": [
+          { "name": "examRecord", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "考试记录ID" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["scores"],
+                "properties": {
+                  "scores": {
+                    "type": "object",
+                    "description": "题目ID到分数的映射"
+                  },
+                  "comment": { "type": "string", "description": "导师评语" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "批改成功"
+          }
+        }
+      }
+    },
+    "/admin/dashboard": {
+      "get": {
+        "tags": ["管理后台-仪表盘"],
+        "summary": "获取仪表盘数据",
+        "description": "获取管理后台仪表盘统计数据",
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/admin/users": {
+      "get": {
+        "tags": ["管理后台-用户管理"],
+        "summary": "获取用户列表",
+        "description": "获取用户列表",
+        "parameters": [
+          { "name": "keyword", "in": "query", "schema": { "type": "string" }, "description": "搜索关键词" },
+          { "name": "role", "in": "query", "schema": { "type": "string" }, "description": "角色筛选" },
+          { "name": "status", "in": "query", "schema": { "type": "string" }, "description": "状态筛选" },
+          { "name": "page", "in": "query", "schema": { "type": "integer" }, "description": "页码" },
+          { "name": "per_page", "in": "query", "schema": { "type": "integer" }, "description": "每页数量" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      },
+      "post": {
+        "tags": ["管理后台-用户管理"],
+        "summary": "创建用户",
+        "description": "创建新用户",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "employee_no", "password"],
+                "properties": {
+                  "name": { "type": "string", "description": "姓名" },
+                  "employee_no": { "type": "string", "description": "工号" },
+                  "email": { "type": "string", "description": "邮箱" },
+                  "phone": { "type": "string", "description": "手机号" },
+                  "password": { "type": "string", "description": "密码" },
+                  "department": { "type": "string", "description": "部门" },
+                  "position": { "type": "string", "description": "职位" },
+                  "role": { "type": "string", "enum": ["student", "mentor", "admin"], "description": "角色" },
+                  "hire_date": { "type": "string", "format": "date", "description": "入职日期" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "创建成功"
+          }
+        }
+      }
+    },
+    "/admin/users/{user}": {
+      "put": {
+        "tags": ["管理后台-用户管理"],
+        "summary": "更新用户",
+        "description": "更新用户信息",
+        "parameters": [
+          { "name": "user", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "用户ID" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "description": "姓名" },
+                  "email": { "type": "string", "description": "邮箱" },
+                  "phone": { "type": "string", "description": "手机号" },
+                  "department": { "type": "string", "description": "部门" },
+                  "position": { "type": "string", "description": "职位" },
+                  "hire_date": { "type": "string", "format": "date", "description": "入职日期" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功"
+          }
+        }
+      }
+    },
+    "/admin/users/{user}/status": {
+      "put": {
+        "tags": ["管理后台-用户管理"],
+        "summary": "更新用户状态",
+        "description": "启用或禁用用户",
+        "parameters": [
+          { "name": "user", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "用户ID" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": { "type": "string", "enum": ["active", "inactive"], "description": "状态" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功"
+          }
+        }
+      }
+    },
+    "/admin/users/{user}/role": {
+      "put": {
+        "tags": ["管理后台-用户管理"],
+        "summary": "更新用户角色",
+        "description": "更新用户角色",
+        "parameters": [
+          { "name": "user", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "用户ID" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["role"],
+                "properties": {
+                  "role": { "type": "string", "enum": ["student", "mentor", "admin"], "description": "角色" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功"
+          }
+        }
+      }
+    },
+    "/admin/users/{user}/reset-password": {
+      "put": {
+        "tags": ["管理后台-用户管理"],
+        "summary": "重置密码",
+        "description": "重置用户密码",
+        "parameters": [
+          { "name": "user", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "用户ID" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["password"],
+                "properties": {
+                  "password": { "type": "string", "description": "新密码" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "重置成功"
+          }
+        }
+      }
+    },
+    "/admin/users/import-template": {
+      "get": {
+        "tags": ["管理后台-用户管理"],
+        "summary": "下载用户导入模板",
+        "description": "下载用户批量导入CSV模板",
+        "responses": {
+          "200": {
+            "description": "成功，返回CSV文件"
+          }
+        }
+      }
+    },
+    "/admin/users/import": {
+      "post": {
+        "tags": ["管理后台-用户管理"],
+        "summary": "批量导入用户",
+        "description": "批量导入用户",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["file"],
+                "properties": {
+                  "file": { "type": "string", "format": "binary", "description": "CSV文件" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "导入结果"
+          }
+        }
+      }
+    },
+    "/admin/mentor-bindings": {
+      "get": {
+        "tags": ["管理后台-导师绑定"],
+        "summary": "获取导师绑定列表",
+        "description": "获取导师学员绑定关系列表",
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      },
+      "post": {
+        "tags": ["管理后台-导师绑定"],
+        "summary": "创建导师绑定",
+        "description": "创建导师学员绑定关系",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["mentor_id", "student_id"],
+                "properties": {
+                  "mentor_id": { "type": "integer", "description": "导师ID" },
+                  "student_id": { "type": "integer", "description": "学员ID" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "创建成功"
+          }
+        }
+      }
+    },
+    "/admin/mentor-bindings/{binding}": {
+      "delete": {
+        "tags": ["管理后台-导师绑定"],
+        "summary": "删除导师绑定",
+        "description": "删除导师学员绑定关系",
+        "parameters": [
+          { "name": "binding", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "绑定ID" }
+        ],
+        "responses": {
+          "200": {
+            "description": "删除成功"
+          }
+        }
+      }
+    },
+    "/admin/categories": {
+      "get": {
+        "tags": ["管理后台-分类管理"],
+        "summary": "获取分类列表",
+        "description": "获取所有分类",
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      },
+      "post": {
+        "tags": ["管理后台-分类管理"],
+        "summary": "创建分类",
+        "description": "创建新分类",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name"],
+                "properties": {
+                  "name": { "type": "string", "description": "分类名称" },
+                  "parent_id": { "type": "integer", "description": "父分类ID" },
+                  "sort_order": { "type": "integer", "description": "排序" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "创建成功"
+          }
+        }
+      }
+    },
+    "/admin/categories/{category}": {
+      "put": {
+        "tags": ["管理后台-分类管理"],
+        "summary": "更新分类",
+        "description": "更新分类信息",
+        "parameters": [
+          { "name": "category", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "分类ID" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "description": "分类名称" },
+                  "parent_id": { "type": "integer", "description": "父分类ID" },
+                  "sort_order": { "type": "integer", "description": "排序" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["管理后台-分类管理"],
+        "summary": "删除分类",
+        "description": "删除指定分类",
+        "parameters": [
+          { "name": "category", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "分类ID" }
+        ],
+        "responses": {
+          "200": {
+            "description": "删除成功"
+          }
+        }
+      }
+    },
+    "/admin/series": {
+      "get": {
+        "tags": ["管理后台-系列管理"],
+        "summary": "获取系列列表",
+        "description": "获取所有系列",
+        "parameters": [
+          { "name": "category_id", "in": "query", "schema": { "type": "integer" }, "description": "分类ID" },
+          { "name": "keyword", "in": "query", "schema": { "type": "string" }, "description": "搜索关键词" },
+          { "name": "page", "in": "query", "schema": { "type": "integer" }, "description": "页码" },
+          { "name": "per_page", "in": "query", "schema": { "type": "integer" }, "description": "每页数量" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      },
+      "post": {
+        "tags": ["管理后台-系列管理"],
+        "summary": "创建系列",
+        "description": "创建新系列",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name"],
+                "properties": {
+                  "name": { "type": "string", "description": "系列名称" },
+                  "description": { "type": "string", "description": "系列描述" },
+                  "category_id": { "type": "integer", "description": "分类ID" },
+                  "cover_image": { "type": "string", "description": "封面图片URL" },
+                  "sort_order": { "type": "integer", "description": "排序" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "创建成功"
+          }
+        }
+      }
+    },
+    "/admin/series/{series}": {
+      "put": {
+        "tags": ["管理后台-系列管理"],
+        "summary": "更新系列",
+        "description": "更新系列信息",
+        "parameters": [
+          { "name": "series", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "系列ID" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "description": "系列名称" },
+                  "description": { "type": "string", "description": "系列描述" },
+                  "category_id": { "type": "integer", "description": "分类ID" },
+                  "cover_image": { "type": "string", "description": "封面图片URL" },
+                  "sort_order": { "type": "integer", "description": "排序" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["管理后台-系列管理"],
+        "summary": "删除系列",
+        "description": "删除指定系列",
+        "parameters": [
+          { "name": "series", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "系列ID" }
+        ],
+        "responses": {
+          "200": {
+            "description": "删除成功"
+          }
+        }
+      }
+    },
+    "/admin/series/{series}/status": {
+      "put": {
+        "tags": ["管理后台-系列管理"],
+        "summary": "更新系列状态",
+        "description": "发布或归档系列",
+        "parameters": [
+          { "name": "series", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "系列ID" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": { "type": "string", "enum": ["draft", "published", "archived"], "description": "状态" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功"
+          }
+        }
+      }
+    },
+    "/admin/courses": {
+      "get": {
+        "tags": ["管理后台-课程管理"],
+        "summary": "获取课程列表",
+        "description": "获取所有课程",
+        "parameters": [
+          { "name": "series_id", "in": "query", "schema": { "type": "integer" }, "description": "系列ID" },
+          { "name": "keyword", "in": "query", "schema": { "type": "string" }, "description": "搜索关键词" },
+          { "name": "page", "in": "query", "schema": { "type": "integer" }, "description": "页码" },
+          { "name": "per_page", "in": "query", "schema": { "type": "integer" }, "description": "每页数量" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      },
+      "post": {
+        "tags": ["管理后台-课程管理"],
+        "summary": "创建课程",
+        "description": "创建新课程",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title", "series_id"],
+                "properties": {
+                  "title": { "type": "string", "description": "课程标题" },
+                  "description": { "type": "string", "description": "课程描述" },
+                  "category_id": { "type": "integer", "description": "分类ID" },
+                  "series_id": { "type": "integer", "description": "系列ID" },
+                  "type": { "type": "string", "enum": ["video", "document", "link"], "description": "类型" },
+                  "content_url": { "type": "string", "description": "内容URL" },
+                  "file_name": { "type": "string", "description": "文件名" },
+                  "file_size": { "type": "integer", "description": "文件大小" },
+                  "min_read_time": { "type": "integer", "description": "最少阅读时间" },
+                  "duration": { "type": "integer", "description": "视频时长" },
+                  "sort_order": { "type": "integer", "description": "排序" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "创建成功"
+          }
+        }
+      }
+    },
+    "/admin/courses/import-template": {
+      "get": {
+        "tags": ["管理后台-课程管理"],
+        "summary": "下载课程导入模板",
+        "description": "下载课程批量导入CSV模板",
+        "responses": {
+          "200": {
+            "description": "成功，返回CSV文件"
+          }
+        }
+      }
+    },
+    "/admin/courses/import": {
+      "post": {
+        "tags": ["管理后台-课程管理"],
+        "summary": "批量导入课程",
+        "description": "批量导入课程",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["file"],
+                "properties": {
+                  "file": { "type": "string", "format": "binary", "description": "CSV文件" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "导入结果"
+          }
+        }
+      }
+    },
+    "/admin/courses/{course}": {
+      "get": {
+        "tags": ["管理后台-课程管理"],
+        "summary": "获取课程详情",
+        "description": "获取课程详情",
+        "parameters": [
+          { "name": "course", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "课程ID" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      },
+      "put": {
+        "tags": ["管理后台-课程管理"],
+        "summary": "更新课程",
+        "description": "更新课程信息",
+        "parameters": [
+          { "name": "course", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "课程ID" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string", "description": "课程标题" },
+                  "description": { "type": "string", "description": "课程描述" },
+                  "category_id": { "type": "integer", "description": "分类ID" },
+                  "series_id": { "type": "integer", "description": "系列ID" },
+                  "type": { "type": "string", "enum": ["video", "document", "link"], "description": "类型" },
+                  "content_url": { "type": "string", "description": "内容URL" },
+                  "file_name": { "type": "string", "description": "文件名" },
+                  "file_size": { "type": "integer", "description": "文件大小" },
+                  "min_read_time": { "type": "integer", "description": "最少阅读时间" },
+                  "duration": { "type": "integer", "description": "视频时长" },
+                  "sort_order": { "type": "integer", "description": "排序" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["管理后台-课程管理"],
+        "summary": "删除课程",
+        "description": "删除指定课程",
+        "parameters": [
+          { "name": "course", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "课程ID" }
+        ],
+        "responses": {
+          "200": {
+            "description": "删除成功"
+          }
+        }
+      }
+    },
+    "/admin/courses/{course}/status": {
+      "put": {
+        "tags": ["管理后台-课程管理"],
+        "summary": "更新课程状态",
+        "description": "发布或归档课程",
+        "parameters": [
+          { "name": "course", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "课程ID" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": { "type": "string", "enum": ["draft", "published", "archived"], "description": "状态" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功"
+          }
+        }
+      }
+    },
+    "/admin/courses/{course}/attachments": {
+      "post": {
+        "tags": ["管理后台-附件管理"],
+        "summary": "添加附件",
+        "description": "为课程添加附件",
+        "parameters": [
+          { "name": "course", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "课程ID" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["file_name", "file_path"],
+                "properties": {
+                  "file_name": { "type": "string", "description": "文件名" },
+                  "file_path": { "type": "string", "description": "文件路径" },
+                  "file_size": { "type": "integer", "description": "文件大小" },
+                  "mime_type": { "type": "string", "description": "MIME类型" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "添加成功"
+          }
+        }
+      }
+    },
+    "/admin/courses/{course}/attachments/{attachment}": {
+      "delete": {
+        "tags": ["管理后台-附件管理"],
+        "summary": "删除附件",
+        "description": "删除课程附件",
+        "parameters": [
+          { "name": "course", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "课程ID" },
+          { "name": "attachment", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "附件ID" }
+        ],
+        "responses": {
+          "200": {
+            "description": "删除成功"
+          }
+        }
+      }
+    },
+    "/admin/exams": {
+      "get": {
+        "tags": ["管理后台-考试管理"],
+        "summary": "获取考试列表",
+        "description": "获取所有考试",
+        "parameters": [
+          { "name": "keyword", "in": "query", "schema": { "type": "string" }, "description": "搜索关键词" },
+          { "name": "status", "in": "query", "schema": { "type": "string" }, "description": "状态筛选" },
+          { "name": "page", "in": "query", "schema": { "type": "integer" }, "description": "页码" },
+          { "name": "per_page", "in": "query", "schema": { "type": "integer" }, "description": "每页数量" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      },
+      "post": {
+        "tags": ["管理后台-考试管理"],
+        "summary": "创建考试",
+        "description": "创建新考试",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title", "time_limit", "passing_score"],
+                "properties": {
+                  "title": { "type": "string", "description": "考试标题" },
+                  "time_limit": { "type": "integer", "description": "考试时长(分钟)" },
+                  "passing_score": { "type": "number", "description": "及格分数" },
+                  "course_ids": {
+                    "type": "array",
+                    "items": { "type": "integer" },
+                    "description": "关联课程ID列表"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "创建成功"
+          }
+        }
+      }
+    },
+    "/admin/exams/{exam}": {
+      "put": {
+        "tags": ["管理后台-考试管理"],
+        "summary": "更新考试",
+        "description": "更新考试信息",
+        "parameters": [
+          { "name": "exam", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "考试ID" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string", "description": "考试标题" },
+                  "time_limit": { "type": "integer", "description": "考试时长(分钟)" },
+                  "passing_score": { "type": "number", "description": "及格分数" },
+                  "course_ids": {
+                    "type": "array",
+                    "items": { "type": "integer" },
+                    "description": "关联课程ID列表"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["管理后台-考试管理"],
+        "summary": "删除考试",
+        "description": "删除指定考试",
+        "parameters": [
+          { "name": "exam", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "考试ID" }
+        ],
+        "responses": {
+          "200": {
+            "description": "删除成功"
+          }
+        }
+      }
+    },
+    "/admin/exams/{exam}/status": {
+      "put": {
+        "tags": ["管理后台-考试管理"],
+        "summary": "更新考试状态",
+        "description": "发布或归档考试",
+        "parameters": [
+          { "name": "exam", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "考试ID" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": { "type": "string", "enum": ["draft", "active", "archived"], "description": "状态" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功"
+          }
+        }
+      }
+    },
+    "/admin/exams/{exam}/questions": {
+      "get": {
+        "tags": ["管理后台-题目管理"],
+        "summary": "获取题目列表",
+        "description": "获取考试的题目列表",
+        "parameters": [
+          { "name": "exam", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "考试ID" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Question" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["管理后台-题目管理"],
+        "summary": "创建题目",
+        "description": "为考试创建新题目",
+        "parameters": [
+          { "name": "exam", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "考试ID" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["type", "content", "score"],
+                "properties": {
+                  "type": { "type": "integer", "enum": [1, 2, 3, 4, 5], "description": "题型: 1=单选, 2=多选, 3=判断, 4=简答, 5=填空" },
+                  "content": { "type": "string", "description": "题目内容" },
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "key": { "type": "string", "description": "选项标识" },
+                        "value": { "type": "string", "description": "选项内容" }
+                      }
+                    },
+                    "description": "选项列表"
+                  },
+                  "correct_answer": { "type": "string", "description": "正确答案" },
+                  "score": { "type": "number", "description": "分值" },
+                  "course_id": { "type": "integer", "description": "关联课程ID" },
+                  "sort_order": { "type": "integer", "description": "排序" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "创建成功"
+          }
+        }
+      }
+    },
+    "/admin/exams/{exam}/questions/{question}": {
+      "put": {
+        "tags": ["管理后台-题目管理"],
+        "summary": "更新题目",
+        "description": "更新题目信息",
+        "parameters": [
+          { "name": "exam", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "考试ID" },
+          { "name": "question", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "题目ID" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "integer", "enum": [1, 2, 3, 4, 5], "description": "题型" },
+                  "content": { "type": "string", "description": "题目内容" },
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "key": { "type": "string", "description": "选项标识" },
+                        "value": { "type": "string", "description": "选项内容" }
+                      }
+                    },
+                    "description": "选项列表"
+                  },
+                  "correct_answer": { "type": "string", "description": "正确答案" },
+                  "score": { "type": "number", "description": "分值" },
+                  "course_id": { "type": "integer", "description": "关联课程ID" },
+                  "sort_order": { "type": "integer", "description": "排序" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["管理后台-题目管理"],
+        "summary": "删除题目",
+        "description": "删除指定题目",
+        "parameters": [
+          { "name": "exam", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "考试ID" },
+          { "name": "question", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "题目ID" }
+        ],
+        "responses": {
+          "200": {
+            "description": "删除成功"
+          }
+        }
+      }
+    },
+    "/admin/exams/import-template": {
+      "get": {
+        "tags": ["管理后台-考试管理"],
+        "summary": "下载考试导入模板",
+        "description": "下载考试批量导入CSV模板",
+        "responses": {
+          "200": {
+            "description": "成功，返回CSV文件"
+          }
+        }
+      }
+    },
+    "/admin/exams/import": {
+      "post": {
+        "tags": ["管理后台-考试管理"],
+        "summary": "批量导入考试",
+        "description": "批量导入考试和题目",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["file"],
+                "properties": {
+                  "file": { "type": "string", "format": "binary", "description": "CSV文件" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "导入结果"
+          }
+        }
+      }
+    },
+    "/admin/exam-records": {
+      "get": {
+        "tags": ["管理后台-考试记录"],
+        "summary": "获取考试记录列表",
+        "description": "获取所有考试记录",
+        "parameters": [
+          { "name": "exam_id", "in": "query", "schema": { "type": "integer" }, "description": "考试ID" },
+          { "name": "user_id", "in": "query", "schema": { "type": "integer" }, "description": "用户ID" },
+          { "name": "status", "in": "query", "schema": { "type": "string" }, "description": "状态" },
+          { "name": "page", "in": "query", "schema": { "type": "integer" }, "description": "页码" },
+          { "name": "per_page", "in": "query", "schema": { "type": "integer" }, "description": "每页数量" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/admin/exam-records/batch-assign": {
+      "post": {
+        "tags": ["管理后台-考试记录"],
+        "summary": "批量分配批改人",
+        "description": "批量分配考试记录给导师批改",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["record_ids", "reviewer_id"],
+                "properties": {
+                  "record_ids": {
+                    "type": "array",
+                    "items": { "type": "integer" },
+                    "description": "考试记录ID列表"
+                  },
+                  "reviewer_id": { "type": "integer", "description": "批改人ID" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "分配成功"
+          }
+        }
+      }
+    },
+    "/admin/exam-records/export": {
+      "get": {
+        "tags": ["管理后台-考试记录"],
+        "summary": "导出考试记录",
+        "description": "导出考试记录为CSV",
+        "parameters": [
+          { "name": "exam_id", "in": "query", "schema": { "type": "integer" }, "description": "考试ID" },
+          { "name": "status", "in": "query", "schema": { "type": "string" }, "description": "状态" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功，返回CSV文件"
+          }
+        }
+      }
+    },
+    "/admin/audit-logs": {
+      "get": {
+        "tags": ["管理后台-审计日志"],
+        "summary": "获取审计日志",
+        "description": "获取审计日志列表",
+        "parameters": [
+          { "name": "user_id", "in": "query", "schema": { "type": "integer" }, "description": "用户ID" },
+          { "name": "action_type", "in": "query", "schema": { "type": "string" }, "description": "操作类型" },
+          { "name": "page", "in": "query", "schema": { "type": "integer" }, "description": "页码" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/admin/audit-logs/stats": {
+      "get": {
+        "tags": ["管理后台-审计日志"],
+        "summary": "获取审计日志统计",
+        "description": "获取审计日志统计数据",
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/admin/learning-progress": {
+      "get": {
+        "tags": ["管理后台-学习进度"],
+        "summary": "获取学习进度列表",
+        "description": "获取所有学习进度",
+        "parameters": [
+          { "name": "user_id", "in": "query", "schema": { "type": "integer" }, "description": "用户ID" },
+          { "name": "course_id", "in": "query", "schema": { "type": "integer" }, "description": "课程ID" },
+          { "name": "page", "in": "query", "schema": { "type": "integer" }, "description": "页码" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/admin/learning-progress/stats": {
+      "get": {
+        "tags": ["管理后台-学习进度"],
+        "summary": "获取学习进度统计",
+        "description": "获取学习进度统计数据",
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/admin/pending-reviews": {
+      "get": {
+        "tags": ["管理后台-待批改"],
+        "summary": "获取待批改列表",
+        "description": "获取待批改的考试记录列表",
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer" }, "description": "页码" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/admin/assign-review/{examRecord}": {
+      "post": {
+        "tags": ["管理后台-待批改"],
+        "summary": "分配批改人",
+        "description": "将考试记录分配给导师批改",
+        "parameters": [
+          { "name": "examRecord", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "考试记录ID" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["reviewer_id"],
+                "properties": {
+                  "reviewer_id": { "type": "integer", "description": "批改人ID" },
+                  "note": { "type": "string", "description": "备注" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "分配成功"
+          }
+        }
+      }
+    },
+    "/admin/comments": {
+      "get": {
+        "tags": ["管理后台-评论管理"],
+        "summary": "获取评论列表",
+        "description": "获取所有评论",
+        "parameters": [
+          { "name": "series_id", "in": "query", "schema": { "type": "integer" }, "description": "系列ID" },
+          { "name": "user_id", "in": "query", "schema": { "type": "integer" }, "description": "用户ID" },
+          { "name": "page", "in": "query", "schema": { "type": "integer" }, "description": "页码" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/admin/comments/{comment}": {
+      "put": {
+        "tags": ["管理后台-评论管理"],
+        "summary": "更新评论",
+        "description": "管理员更新评论",
+        "parameters": [
+          { "name": "comment", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "评论ID" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "content": { "type": "string", "description": "评论内容" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["管理后台-评论管理"],
+        "summary": "删除评论",
+        "description": "管理员删除评论",
+        "parameters": [
+          { "name": "comment", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "评论ID" }
+        ],
+        "responses": {
+          "200": {
+            "description": "删除成功"
+          }
+        }
+      }
+    },
+    "/admin/comments/{comment}/reply": {
+      "post": {
+        "tags": ["管理后台-评论管理"],
+        "summary": "回复评论",
+        "description": "管理员回复评论",
+        "parameters": [
+          { "name": "comment", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "评论ID" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["content"],
+                "properties": {
+                  "content": { "type": "string", "description": "回复内容" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "回复成功"
+          }
+        }
+      }
+    },
+    "/admin/settings": {
+      "get": {
+        "tags": ["管理后台-系统设置"],
+        "summary": "获取系统设置",
+        "description": "获取所有系统设置",
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      },
+      "put": {
+        "tags": ["管理后台-系统设置"],
+        "summary": "更新系统设置",
+        "description": "更新系统设置",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "配置键值对"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功"
+          }
+        }
+      }
+    },
+    "/admin/upload/file": {
+      "post": {
+        "tags": ["管理后台-文件上传"],
+        "summary": "上传文件",
+        "description": "上传单个文件",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["file"],
+                "properties": {
+                  "file": { "type": "string", "format": "binary", "description": "文件" },
+                  "type": { "type": "string", "description": "文件类型" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "上传成功"
+          }
+        }
+      }
+    },
+    "/admin/upload/init": {
+      "post": {
+        "tags": ["管理后台-文件上传"],
+        "summary": "初始化分片上传",
+        "description": "初始化分片上传",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["file_name", "file_size", "total_chunks"],
+                "properties": {
+                  "file_name": { "type": "string", "description": "文件名" },
+                  "file_size": { "type": "integer", "description": "文件大小" },
+                  "total_chunks": { "type": "integer", "description": "总分片数" },
+                  "type": { "type": "string", "description": "文件类型" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "初始化成功"
+          }
+        }
+      }
+    },
+    "/admin/upload/chunk": {
+      "post": {
+        "tags": ["管理后台-文件上传"],
+        "summary": "上传分片",
+        "description": "上传文件分片",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["upload_id", "chunk_index", "chunk"],
+                "properties": {
+                  "upload_id": { "type": "string", "description": "上传ID" },
+                  "chunk_index": { "type": "integer", "description": "分片索引" },
+                  "chunk": { "type": "string", "format": "binary", "description": "分片数据" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "上传成功"
+          }
+        }
+      }
+    },
+    "/admin/upload/complete": {
+      "post": {
+        "tags": ["管理后台-文件上传"],
+        "summary": "完成分片上传",
+        "description": "完成分片上传",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["upload_id"],
+                "properties": {
+                  "upload_id": { "type": "string", "description": "上传ID" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "完成成功"
+          }
+        }
+      }
+    },
+    "/admin/upload/{uploadId}/status": {
+      "get": {
+        "tags": ["管理后台-文件上传"],
+        "summary": "查询上传状态",
+        "description": "查询分片上传状态",
+        "parameters": [
+          { "name": "uploadId", "in": "path", "required": true, "schema": { "type": "string" }, "description": "上传ID" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/admin/upload/conversion-status": {
+      "get": {
+        "tags": ["管理后台-文件上传"],
+        "summary": "查询文件转换状态",
+        "description": "查询文件转换状态",
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/admin/upload/{uploadId}/cancel": {
+      "delete": {
+        "tags": ["管理后台-文件上传"],
+        "summary": "取消上传",
+        "description": "取消分片上传",
+        "parameters": [
+          { "name": "uploadId", "in": "path", "required": true, "schema": { "type": "string" }, "description": "上传ID" }
+        ],
+        "responses": {
+          "200": {
+            "description": "取消成功"
+          }
+        }
+      }
+    }
+  }
+}
