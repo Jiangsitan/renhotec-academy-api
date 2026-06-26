@@ -361,7 +361,7 @@ class AdminController extends Controller
 
     public function categories(): JsonResponse
     {
-        $categories = Category::with('parent')
+        $categories = Category::with(['parent', 'children'])
             ->withCount('series')
             ->withCount('children')
             ->orderBy('sort_order')
