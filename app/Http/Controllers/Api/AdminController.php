@@ -1065,11 +1065,25 @@ class AdminController extends Controller
             'user:id,name,employee_no,department',
             'exam:id,title,passing_score',
             'assignee:id,name',
-        ]);
+        ])->join('exams', 'exam_records.exam_id', '=', 'exams.id');
 
         // 状态筛选
         if ($request->filled('status')) {
-            $query->where('status', $request->input('status'));
+            $status = $request->input('status');
+            if ($status === '3') {
+                $query->where('exam_records.status', ExamRecordStatus::PendingReview);
+            } elseif ($status === 'passed') {
+                $query->where('exam_records.status', ExamRecordStatus::Graded)
+                      ->whereColumn('exam_records.total_score', '>=', 'exams.passing_score');
+            } elseif ($status === 'failed') {
+                $query->where(function ($q) {
+                    $q->where('exam_records.status', ExamRecordStatus::Rejected)
+                      ->orWhere(function ($q2) {
+                          $q2->where('exam_records.status', ExamRecordStatus::Graded)
+                             ->whereColumn('exam_records.total_score', '<', 'exams.passing_score');
+                      });
+                });
+            }
         }
 
         // 部门筛选
