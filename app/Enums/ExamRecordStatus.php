@@ -2,12 +2,13 @@
 
 namespace App\Enums;
 
-enum ExamRecordStatus: string
+enum ExamRecordStatus: int
 {
-    case InProgress = 'in_progress';
-    case Submitted = 'submitted';
-    case AutoGraded = 'auto_graded';
-    case PendingReview = 'pending_review';
-    case Graded = 'graded';
-    case Rejected = 'rejected';
+    case InProgress = 0;
+    case Submitted = 1;
+    case AutoGraded = 2;
+    case PendingReview = 3;
+    case Graded = 4;
+    case Rejected = 5;
+    case Retaken = 6;
 }

@@ -50,7 +50,7 @@ class AdminController extends Controller
             'total_exams' => Exam::count(),
             'active_exams' => Exam::where('status', 'active')->count(),
             'total_exam_records' => ExamRecord::count(),
-            'pending_reviews' => ExamRecord::where('status', 'pending_review')->count(),
+            'pending_reviews' => ExamRecord::where('status', ExamRecordStatus::PendingReview)->count(),
             'today_active_users' => AuditLog::whereDate('created_at', today())
                 ->distinct('user_id')
                 ->count('user_id'),
@@ -439,6 +439,23 @@ class AdminController extends Controller
         $category->delete();
 
         return response()->json(['message' => '分类已删除']);
+    }
+
+    public function reorderCategories(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'orders' => 'required|array|min:1',
+            'orders.*.id' => 'required|integer|exists:categories,id',
+            'orders.*.sort_order' => 'required|integer|min:0',
+        ]);
+
+        DB::transaction(function () use ($validated) {
+            foreach ($validated['orders'] as $item) {
+                Category::where('id', $item['id'])->update(['sort_order' => $item['sort_order']]);
+            }
+        });
+
+        return response()->json(['message' => '排序已更新']);
     }
 
     // ==================== 系列管理 ====================

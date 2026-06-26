@@ -86,6 +86,7 @@ Route::middleware('auth.api')->group(function () {
     // 导师路由
     Route::middleware('role:mentor,admin')->group(function () {
         Route::get('/mentor/pending-reviews', [\App\Http\Controllers\Api\MentorController::class, 'pendingReviews']);
+        Route::get('/mentor/reviewed-records', [\App\Http\Controllers\Api\MentorController::class, 'reviewedRecords']);
         Route::post('/mentor/review/{examRecord}', [\App\Http\Controllers\Api\MentorController::class, 'review']);
     });
 
@@ -112,6 +113,7 @@ Route::middleware('auth.api')->group(function () {
         // 分类管理
         Route::get('/categories', [AdminController::class, 'categories']);
         Route::post('/categories', [AdminController::class, 'createCategory']);
+        Route::put('/categories/reorder', [AdminController::class, 'reorderCategories']);
         Route::put('/categories/{category}', [AdminController::class, 'updateCategory']);
         Route::delete('/categories/{category}', [AdminController::class, 'deleteCategory']);
 

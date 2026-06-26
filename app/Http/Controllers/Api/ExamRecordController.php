@@ -32,8 +32,25 @@ class ExamRecordController extends Controller
 
         $existing = ExamRecord::where('user_id', $user->id)
             ->where('exam_id', $exam->id)
-            ->whereIn('status', ['submitted', 'auto_graded', 'pending_review', 'graded'])
+            ->whereIn('status', [
+                ExamRecordStatus::Submitted,
+                ExamRecordStatus::AutoGraded,
+                ExamRecordStatus::PendingReview,
+            ])
             ->first();
+
+        // 如果有已批改但未通过的记录，标记为已重考
+        if (!$existing) {
+            $gradedRecord = ExamRecord::where('user_id', $user->id)
+                ->where('exam_id', $exam->id)
+                ->where('status', ExamRecordStatus::Graded)
+                ->first();
+            if ($gradedRecord && $exam->passing_score && $gradedRecord->total_score < $exam->passing_score) {
+                $gradedRecord->update(['status' => ExamRecordStatus::Retaken]);
+            } elseif ($gradedRecord) {
+                $existing = $gradedRecord;
+            }
+        }
 
         if ($existing) {
             return response()->json(['message' => '您已提交过此考试', 'data' => $existing], 422);

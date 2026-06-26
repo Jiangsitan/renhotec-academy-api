@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\ExamRecordStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\Exam;
@@ -75,8 +76,25 @@ class ExamController extends Controller
         $canTake = $this->canTakeExam($user, $exam);
         $existingRecord = $user->examRecords()
             ->where('exam_id', $exam->id)
-            ->whereIn('status', ['submitted', 'auto_graded', 'pending_review', 'graded'])
+            ->whereIn('status', [
+                ExamRecordStatus::Submitted,
+                ExamRecordStatus::AutoGraded,
+                ExamRecordStatus::PendingReview,
+            ])
             ->first();
+
+        // 如果有已批改记录但未通过，视为可重考（不返回 existing_record）
+        if (!$existingRecord) {
+            $gradedRecord = $user->examRecords()
+                ->where('exam_id', $exam->id)
+                ->where('status', ExamRecordStatus::Graded)
+                ->first();
+            if ($gradedRecord && $exam->passing_score && $gradedRecord->total_score < $exam->passing_score) {
+                // 未通过，允许重考
+            } elseif ($gradedRecord) {
+                $existingRecord = $gradedRecord;
+            }
+        }
 
         $questions = $exam->questions->map(function ($q) {
             return [

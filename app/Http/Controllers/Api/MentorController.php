@@ -23,8 +23,22 @@ class MentorController extends Controller
         // 查看分配给自己的待批改答卷
         $records = ExamRecord::with(['user:id,name,employee_no,department', 'exam:id,title'])
             ->where('assigned_to', $mentor->id)
-            ->where('status', 'pending_review')
+            ->where('status', ExamRecordStatus::PendingReview)
             ->orderBy('submitted_at', 'asc')
+            ->paginate($request->input('per_page', 15));
+
+        return response()->json(['data' => $records]);
+    }
+
+    public function reviewedRecords(Request $request): JsonResponse
+    {
+        $mentor = $request->user();
+
+        // 查看自己已批改的答卷（已批改 + 已驳回）
+        $records = ExamRecord::with(['user:id,name,employee_no,department', 'exam:id,title,passing_score'])
+            ->where('graded_by', $mentor->id)
+            ->whereIn('status', [ExamRecordStatus::Graded, ExamRecordStatus::Rejected])
+            ->orderBy('graded_at', 'desc')
             ->paginate($request->input('per_page', 15));
 
         return response()->json(['data' => $records]);
