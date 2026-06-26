@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Enums\ExamRecordStatus;
 use App\Models\ExamRecord;
-use App\Notifications\ExamRejectedNotification;
 use App\Services\ExamGradingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -50,7 +49,7 @@ class MentorController extends Controller
             'subjective_scores' => 'nullable|array',
             'subjective_scores.*' => 'required|numeric|min:0',
             'comment' => 'nullable|string|max:1000',
-            'action' => 'required|in:approve,reject',
+            'action' => 'required|in:approve',
         ]);
 
         $mentor = $request->user();
@@ -62,27 +61,6 @@ class MentorController extends Controller
 
         if ($examRecord->status !== ExamRecordStatus::PendingReview) {
             return response()->json(['message' => '此答卷不需要批改'], 422);
-        }
-
-        // 驳回逻辑
-        if ($validated['action'] === 'reject') {
-            $examRecord->update([
-                'status' => ExamRecordStatus::Rejected,
-                'mentor_comment' => $validated['comment'] ?? '试卷被驳回，请补充回答',
-                'graded_by' => $mentor->id,
-                'graded_at' => now(),
-            ]);
-
-            // 发送驳回通知
-            $examRecord->user->notify(new ExamRejectedNotification(
-                $examRecord,
-                $validated['comment'] ?? '试卷被驳回'
-            ));
-
-            return response()->json([
-                'message' => '已驳回',
-                'data' => $examRecord->fresh(),
-            ]);
         }
 
         // 通过逻辑
