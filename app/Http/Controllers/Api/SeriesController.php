@@ -32,7 +32,7 @@ class SeriesController extends Controller
             return response()->json(['message' => '系列未发布'], 403);
         }
 
-        $series->load(['publishedCourses.exam', 'publishedCourses.attachments', 'publishedCourses.mentor', 'category']);
+        $series->load(['publishedCourses.exam', 'publishedCourses.attachments', 'publishedCourses.mentor', 'category.parent']);
 
         $user = request()->user();
 
