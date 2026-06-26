@@ -120,6 +120,7 @@ Route::middleware('auth.api')->group(function () {
         Route::post('/series', [AdminController::class, 'createSeries']);
         Route::put('/series/{series}', [AdminController::class, 'updateSeries']);
         Route::put('/series/{series}/status', [AdminController::class, 'updateSeriesStatus']);
+        Route::put('/series/{series}/courses/reorder', [AdminController::class, 'reorderSeriesCourses']);
         Route::delete('/series/{series}', [AdminController::class, 'deleteSeries']);
 
         // 课程管理

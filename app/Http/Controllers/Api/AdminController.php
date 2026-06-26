@@ -518,6 +518,32 @@ class AdminController extends Controller
         ]);
     }
 
+    public function reorderSeriesCourses(Request $request, Series $series): JsonResponse
+    {
+        $validated = $request->validate([
+            'course_ids' => 'required|array',
+            'course_ids.*' => 'integer|exists:courses,id',
+        ]);
+
+        $courseIds = $validated['course_ids'];
+
+        $validCount = Course::whereIn('id', $courseIds)
+            ->where('series_id', $series->id)
+            ->count();
+
+        if ($validCount !== count($courseIds)) {
+            return response()->json(['message' => '部分课程不属于该系列'], 422);
+        }
+
+        DB::transaction(function () use ($courseIds) {
+            foreach ($courseIds as $index => $id) {
+                Course::where('id', $id)->update(['sort_order' => $index + 1]);
+            }
+        });
+
+        return response()->json(['message' => '排序已更新']);
+    }
+
     public function deleteSeries(Request $request, Series $series): JsonResponse
     {
         $hasCourses = Course::where('series_id', $series->id)->exists();
