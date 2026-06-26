@@ -1065,7 +1065,7 @@ class AdminController extends Controller
             'user:id,name,employee_no,department',
             'exam:id,title,passing_score',
             'assignee:id,name',
-        ]);
+        ])->select('id', 'user_id', 'exam_id', 'answers', 'subjective_score', 'total_score', 'status', 'submitted_at', 'graded_at', 'graded_by', 'mentor_comment', 'assigned_to', 'assignment_note', 'created_at', 'updated_at');
 
         // 状态筛选
         if ($request->filled('status')) {
