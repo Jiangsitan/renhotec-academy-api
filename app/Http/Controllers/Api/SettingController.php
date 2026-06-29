@@ -14,6 +14,7 @@ class SettingController extends Controller
             'system_name',
             'system_subtitle',
             'system_logo',
+            'exam_anti_cheat_enabled',
         ])->pluck('value', 'key');
 
         return response()->json(['data' => $settings]);

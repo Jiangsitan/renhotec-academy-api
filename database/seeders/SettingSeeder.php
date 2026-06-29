@@ -15,6 +15,7 @@ class SettingSeeder extends Seeder
             ['key' => 'system_name', 'value' => 'Renhotec Academy', 'group' => 'general'],
             ['key' => 'system_subtitle', 'value' => '员工培训与考试系统', 'group' => 'general'],
             ['key' => 'system_logo', 'value' => '', 'group' => 'general'],
+            ['key' => 'exam_anti_cheat_enabled', 'value' => '1', 'group' => 'exam'],
         ];
 
         foreach ($settings as $setting) {
