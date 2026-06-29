@@ -146,7 +146,7 @@ class ExamRecordController extends Controller
     {
         $user = $request->user();
 
-        $records = ExamRecord::with(['exam:id,title,passing_score,course_id'])
+        $records = ExamRecord::with(['exam:id,title,passing_score'])
             ->where('user_id', $user->id)
             ->orderBy('created_at', 'desc')
             ->paginate($request->input('per_page', 15));
