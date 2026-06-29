@@ -8,6 +8,11 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // SQLite doesn't support dropForeign by name or dropColumn with FK constraints
+        if (Schema::getConnection()->getDriverName() === 'sqlite') {
+            return;
+        }
+
         // 只在 parent_id 列存在时才执行（说明是原始 categories 表结构）
         if (!Schema::hasColumn('categories', 'parent_id')) {
             return;
@@ -49,6 +54,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (Schema::getConnection()->getDriverName() === 'sqlite') {
+            return;
+        }
+
         Schema::table('categories', function (Blueprint $table) {
             $table->foreignId('parent_id')->nullable()->after('name')->constrained('categories')->nullOnDelete();
             $table->tinyInteger('level')->default(1)->after('parent_id');

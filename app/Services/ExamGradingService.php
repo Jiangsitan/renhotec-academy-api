@@ -27,7 +27,7 @@ class ExamGradingService
             }
 
             // 简答题：需要导师/管理员手动批改
-            if ($question->type == 4) {
+            if ($question->type === 'short_answer') {
                 $hasSubjective = true;
                 $answer['is_correct'] = null;
                 $answer['score_awarded'] = 0;
@@ -36,7 +36,7 @@ class ExamGradingService
             }
 
             // 填空题：需要导师/管理员手动批改
-            if ($question->type == 5) {
+            if ($question->type === 'fill_blank') {
                 $hasSubjective = true;
                 $answer['is_correct'] = null;
                 $answer['score_awarded'] = 0;
@@ -130,9 +130,9 @@ class ExamGradingService
     {
         $correct = $question->correct_answer;
 
-        return match ((int)$question->type) {
-            1, 3 => strtolower(trim((string) $answer)) === strtolower(trim($correct)), // 单选、判断
-            2 => $this->checkMultipleAnswer($correct, $answer), // 多选
+        return match ($question->type) {
+            'single', 'truefalse' => strtolower(trim((string) $answer)) === strtolower(trim($correct)),
+            'multiple' => $this->checkMultipleAnswer($correct, $answer),
             default => false,
         };
     }
@@ -140,7 +140,10 @@ class ExamGradingService
     private function checkMultipleAnswer(string $correct, string|array $answer): bool
     {
         $correctSet = collect(explode(',', str_replace(' ', '', $correct)))->sort()->values();
-        $answerSet = collect((array) $answer)->sort()->values();
+
+        // Handle both array and comma-separated string answers
+        $answerStr = is_array($answer) ? implode(',', $answer) : $answer;
+        $answerSet = collect(explode(',', str_replace(' ', '', $answerStr)))->sort()->values();
 
         return $correctSet->toArray() === $answerSet->toArray();
     }

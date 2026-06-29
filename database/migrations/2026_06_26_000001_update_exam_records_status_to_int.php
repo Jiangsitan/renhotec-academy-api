@@ -2,11 +2,16 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::getConnection()->getDriverName() === 'sqlite') {
+            return; // SQLite doesn't support ALTER TABLE MODIFY or string CASE
+        }
+
         // 先将现有字符串值映射为数字
         DB::statement("UPDATE exam_records SET status = CASE status
             WHEN 'in_progress' THEN '0'
@@ -24,6 +29,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (Schema::getConnection()->getDriverName() === 'sqlite') {
+            return;
+        }
+
         // 先改回 ENUM
         DB::statement("ALTER TABLE exam_records MODIFY status ENUM('in_progress','submitted','auto_graded','pending_review','graded','rejected') NOT NULL DEFAULT 'in_progress'");
 

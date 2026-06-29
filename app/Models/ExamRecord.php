@@ -3,10 +3,13 @@
 namespace App\Models;
 
 use App\Enums\ExamRecordStatus;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class ExamRecord extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'user_id',
         'exam_id',

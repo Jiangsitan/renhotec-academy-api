@@ -26,11 +26,54 @@ class UserFactory extends Factory
     {
         return [
             'name' => fake()->name(),
+            'employee_no' => fake()->unique()->bothify('EMP####'),
             'email' => fake()->unique()->safeEmail(),
+            'phone' => fake()->phoneNumber(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
+            'department' => fake()->randomElement(['Engineering', 'Marketing', 'HR', 'Finance', 'Operations']),
+            'position' => fake()->randomElement(['Developer', 'Manager', 'Director', 'Analyst', 'Specialist']),
+            'role' => 'student',
+            'status' => 'active',
+            'hire_date' => fake()->dateTimeBetween('-5 years', 'now'),
+            'trial_end_date' => null,
         ];
+    }
+
+    public function admin(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'admin',
+        ]);
+    }
+
+    public function mentor(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'mentor',
+        ]);
+    }
+
+    public function student(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'student',
+        ]);
+    }
+
+    public function trialEmployee(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'trial_end_date' => now()->addDays(30),
+        ]);
+    }
+
+    public function permanentEmployee(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'trial_end_date' => now()->subDays(30),
+        ]);
     }
 
     /**

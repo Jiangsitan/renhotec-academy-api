@@ -13,7 +13,12 @@ return new class extends Migration
                 $table->id();
                 $table->foreignId('exam_id')->constrained('exams')->cascadeOnDelete();
                 $table->foreignId('course_id')->nullable()->constrained('courses')->nullOnDelete()->comment('关联课程，用于错题回跳');
-                $table->enum('type', ['single', 'multiple', 'truefalse', 'short_answer'])->comment('题型');
+                // On SQLite, use text to avoid CHECK constraint issues with evolving enum values
+                if (Schema::getConnection()->getDriverName() === 'sqlite') {
+                    $table->string('type')->comment('题型');
+                } else {
+                    $table->enum('type', ['single', 'multiple', 'truefalse', 'short_answer'])->comment('题型');
+                }
                 $table->text('content')->comment('题干');
                 $table->json('options')->nullable()->comment('选项');
                 $table->text('correct_answer')->comment('正确答案');

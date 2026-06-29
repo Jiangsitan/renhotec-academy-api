@@ -2,11 +2,16 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::getConnection()->getDriverName() === 'sqlite') {
+            return; // SQLite doesn't support ALTER TABLE COMMENT
+        }
+
         DB::statement("ALTER TABLE users COMMENT = '用户表：存储员工信息、角色、状态等'");
         DB::statement("ALTER TABLE categories COMMENT = '课程分类表：支持两级分类结构'");
         DB::statement("ALTER TABLE series COMMENT = '培训系列表：关联分类，包含多个课程'");

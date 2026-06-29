@@ -17,7 +17,12 @@ return new class extends Migration
                 $table->decimal('objective_score', 5, 2)->default(0)->comment('客观题自动评分');
                 $table->decimal('subjective_score', 5, 2)->nullable()->comment('主观题人工评分');
                 $table->decimal('total_score', 5, 2)->nullable()->comment('总分');
-                $table->enum('status', ['in_progress', 'submitted', 'auto_graded', 'pending_review', 'graded'])->default('in_progress');
+                // Use integer on SQLite (enum creates CHECK constraint with string values, incompatible with int-backed PHP enum)
+                if (Schema::getConnection()->getDriverName() === 'sqlite') {
+                    $table->tinyInteger('status')->default(0);
+                } else {
+                    $table->enum('status', ['in_progress', 'submitted', 'auto_graded', 'pending_review', 'graded'])->default('in_progress');
+                }
                 $table->timestamp('submitted_at')->nullable();
                 $table->timestamp('graded_at')->nullable();
                 $table->foreignId('graded_by')->nullable()->constrained('users')->nullOnDelete();

@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::getConnection()->getDriverName() === 'sqlite') {
+            return; // SQLite has issues dropping indexed columns with FK constraints
+        }
+
         Schema::table('exams', function (Blueprint $table) {
             $table->dropForeign(['course_id']);
             $table->dropColumn('course_id');
