@@ -100,6 +100,13 @@ class ExamRecordController extends Controller
 
         $examRecord->load(['exam.questions', 'user', 'grader']);
 
+        // Normalize question types from MySQL ENUM strings to integers
+        if ($examRecord->exam && $examRecord->exam->questions) {
+            $examRecord->exam->questions->each(function ($q) {
+                $q->type = self::normalizeQuestionType($q->type);
+            });
+        }
+
         return response()->json(['data' => $examRecord]);
     }
 
@@ -120,7 +127,7 @@ class ExamRecordController extends Controller
                 return [
                     'question_id' => $answer['question_id'],
                     'content' => $question?->content,
-                    'type' => $question?->type,
+                    'type' => self::normalizeQuestionType($question?->type ?? ''),
                     'options' => $question?->options,
                     'your_answer' => $answer['answer'],
                     'correct_answer' => $question?->correct_answer,
@@ -152,6 +159,24 @@ class ExamRecordController extends Controller
             ->paginate($request->input('per_page', 15));
 
         return response()->json(['data' => $records]);
+    }
+
+    /**
+     * MySQL ENUM 字符串 → 前端整数映射
+     */
+    private static function normalizeQuestionType(string|int|null $type): int
+    {
+        if ($type === null) return 0;
+        $map = [
+            'single' => 1,
+            'multiple' => 2,
+            'truefalse' => 3,
+            'short_answer' => 4,
+            'fill_blank' => 5,
+        ];
+
+        if (is_int($type)) return $type;
+        return $map[$type] ?? 0;
     }
 
     public function recordCheat(Request $request, Exam $exam): JsonResponse

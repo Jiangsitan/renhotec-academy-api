@@ -99,7 +99,7 @@ class ExamController extends Controller
         $questions = $exam->questions->map(function ($q) {
             return [
                 'id' => $q->id,
-                'type' => $q->type,
+                'type' => self::normalizeQuestionType($q->type),
                 'content' => $q->content,
                 'options' => $q->options,
                 'score' => $q->score,
@@ -122,6 +122,25 @@ class ExamController extends Controller
                 'can_take' => $canTake,
             ],
         ]);
+    }
+
+    /**
+     * MySQL ENUM 字符串 → 前端整数映射
+     * 数据库存储 ENUM('single','multiple','truefalse','short_answer','fill_blank')
+     * 但前端统一使用整数 1-5
+     */
+    private static function normalizeQuestionType(string|int $type): int
+    {
+        $map = [
+            'single' => 1,
+            'multiple' => 2,
+            'truefalse' => 3,
+            'short_answer' => 4,
+            'fill_blank' => 5,
+        ];
+
+        if (is_int($type)) return $type;
+        return $map[$type] ?? 0;
     }
 
     private function canTakeExam($user, Exam $exam): bool

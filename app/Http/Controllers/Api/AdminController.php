@@ -1074,17 +1074,13 @@ class AdminController extends Controller
                 $query->where('exam_records.status', ExamRecordStatus::PendingReview);
             } elseif ($status === 'passed') {
                 $query->where('exam_records.status', ExamRecordStatus::Graded)
-                      ->whereHas('exam', function ($q) {
-                          $q->whereRaw('exam_records.total_score >= exams.passing_score');
-                      });
+                      ->whereColumn('exam_records.total_score', '>=', 'exams.passing_score');
             } elseif ($status === 'failed') {
                 $query->where(function ($q) {
                     $q->where('exam_records.status', ExamRecordStatus::Rejected)
                       ->orWhere(function ($q2) {
                           $q2->where('exam_records.status', ExamRecordStatus::Graded)
-                             ->whereHas('exam', function ($q3) {
-                                 $q3->whereRaw('exam_records.total_score < exams.passing_score');
-                             });
+                             ->whereColumn('exam_records.total_score', '<', 'exams.passing_score');
                       });
                 });
             }
