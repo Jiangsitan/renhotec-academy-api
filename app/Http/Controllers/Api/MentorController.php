@@ -63,11 +63,14 @@ class MentorController extends Controller
             return response()->json(['message' => '此答卷不需要批改'], 422);
         }
 
+        // 纯客观题答卷无需传 subjective_scores，直接使用已有的 objective_score
+        $subjectiveScores = $validated['subjective_scores'] ?? [];
+
         // 通过逻辑
         $this->gradingService->mentorReview(
             $examRecord,
             $mentor,
-            $validated['subjective_scores'],
+            $subjectiveScores,
             $validated['comment'] ?? null
         );
 

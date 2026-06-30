@@ -10,16 +10,15 @@ use App\Models\User;
 class ExamGradingService
 {
     /**
-     * 自动评分客观题，简答题分配批改人
+     * 自动评分客观题，所有考试统一进入待批改状态
      */
     public function autoGrade(ExamRecord $record): void
     {
         $exam = $record->exam()->with('questions')->first();
         $answers = $record->answers ?? [];
         $objectiveScore = 0;
-        $hasSubjective = false;
 
-        $gradedAnswers = array_map(function ($answer) use ($exam, &$objectiveScore, &$hasSubjective) {
+        $gradedAnswers = array_map(function ($answer) use ($exam, &$objectiveScore) {
             $question = $exam->questions->firstWhere('id', $answer['question_id']);
 
             if (!$question) {
@@ -28,7 +27,6 @@ class ExamGradingService
 
             // 简答题：需要导师/管理员手动批改
             if ($question->type === 'short_answer') {
-                $hasSubjective = true;
                 $answer['is_correct'] = null;
                 $answer['score_awarded'] = 0;
                 $answer['auto_graded'] = false;
@@ -37,7 +35,6 @@ class ExamGradingService
 
             // 填空题：需要导师/管理员手动批改
             if ($question->type === 'fill_blank') {
-                $hasSubjective = true;
                 $answer['is_correct'] = null;
                 $answer['score_awarded'] = 0;
                 $answer['auto_graded'] = false;
@@ -55,26 +52,19 @@ class ExamGradingService
         $record->answers = $gradedAnswers;
         $record->objective_score = $objectiveScore;
 
-        if ($hasSubjective) {
-            // 有简题 → 推送批改
-            $record->status = ExamRecordStatus::PendingReview;
-            $record->assigned_to = $this->resolveReviewer($record->user);
-        } else {
-            // 无简题 → 直接出分
-            $record->status = ExamRecordStatus::Graded;
-            $record->total_score = $objectiveScore;
-            $record->graded_at = now();
-        }
+        // 所有考试统一进入待批改状态，由导师最终确认出分
+        $record->status = ExamRecordStatus::PendingReview;
+        $record->assigned_to = $this->resolveReviewer($record->user);
 
         $record->save();
     }
 
     /**
      * 解析批改人：
-     * - 实习期员工 → 查找绑定导师，无导师则 null（等管理员分配）
+     * - 实习期员工 → 查找绑定导师，无导师则 fallback 到管理员
      * - 正式员工 → 管理员
      */
-    private function resolveReviewer(User $user): ?int
+    private function resolveReviewer(User $user): int
     {
         if ($user->isTrialEmployee()) {
             // 实习期：查找绑定导师
@@ -82,12 +72,17 @@ class ExamGradingService
                 ->where('mentor_student.status', 'active')
                 ->first();
 
-            return $mentor?->id; // 有导师返回导师ID，无导师返回null
+            if ($mentor) {
+                return $mentor->id;
+            }
         }
 
-        // 正式员工：分配给管理员
+        // 无导师或正式员工 → fallback 到管理员
         $admin = User::where('role', 'admin')->first();
-        return $admin?->id;
+        if (!$admin) {
+            throw new \RuntimeException('系统中无管理员用户，无法分配审批人');
+        }
+        return $admin->id;
     }
 
     /**

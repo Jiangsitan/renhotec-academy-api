@@ -16,11 +16,14 @@ class ExamGradingServiceTest extends TestCase
     use RefreshDatabase;
 
     private ExamGradingService $service;
+    private User $admin;
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->service = new ExamGradingService();
+        // 创建管理员用户，所有测试都需要
+        $this->admin = User::factory()->admin()->create();
     }
 
     /**
@@ -54,10 +57,10 @@ class ExamGradingServiceTest extends TestCase
         $this->service->autoGrade($record);
         $record->refresh();
 
-        $this->assertEquals(ExamRecordStatus::Graded, $record->status);
+        // 所有考试统一进入待批改状态
+        $this->assertEquals(ExamRecordStatus::PendingReview, $record->status);
         $this->assertEquals(10.0, (float) $record->objective_score);
-        $this->assertEquals(10.0, (float) $record->total_score);
-        $this->assertNotNull($record->graded_at);
+        $this->assertNotNull($record->assigned_to);
     }
 
     public function test_auto_grade_single_choice_wrong(): void
@@ -72,9 +75,9 @@ class ExamGradingServiceTest extends TestCase
         $this->service->autoGrade($record);
         $record->refresh();
 
-        $this->assertEquals(ExamRecordStatus::Graded, $record->status);
+        // 所有考试统一进入待批改状态
+        $this->assertEquals(ExamRecordStatus::PendingReview, $record->status);
         $this->assertEquals(0.0, (float) $record->objective_score);
-        $this->assertEquals(0.0, (float) $record->total_score);
     }
 
     public function test_auto_grade_single_choice_case_insensitive(): void
@@ -228,7 +231,6 @@ class ExamGradingServiceTest extends TestCase
     {
         $exam = Exam::factory()->create();
         $question = Question::factory()->shortAnswer()->for($exam)->withScore(20)->create();
-        $admin = User::factory()->admin()->create();
         $user = User::factory()->student()->permanentEmployee()->create();
         $record = $this->createRecordWithAnswers($user, $exam, [
             ['question_id' => $question->id, 'answer' => 'My answer'],
@@ -242,14 +244,13 @@ class ExamGradingServiceTest extends TestCase
         $this->assertEquals(0.0, (float) $record->answers[0]['score_awarded']);
         $this->assertFalse($record->answers[0]['auto_graded']);
         $this->assertNull($record->answers[0]['is_correct']);
-        $this->assertEquals($admin->id, $record->assigned_to);
+        $this->assertEquals($this->admin->id, $record->assigned_to);
     }
 
     public function test_auto_grade_fill_blank_pending_review(): void
     {
         $exam = Exam::factory()->create();
         $question = Question::factory()->fillBlank()->for($exam)->withScore(10)->create();
-        $admin = User::factory()->admin()->create();
         $user = User::factory()->student()->permanentEmployee()->create();
         $record = $this->createRecordWithAnswers($user, $exam, [
             ['question_id' => $question->id, 'answer' => 'PHP'],
@@ -302,9 +303,9 @@ class ExamGradingServiceTest extends TestCase
         $this->service->autoGrade($record);
         $record->refresh();
 
-        $this->assertEquals(ExamRecordStatus::Graded, $record->status);
+        // 所有考试统一进入待批改状态
+        $this->assertEquals(ExamRecordStatus::PendingReview, $record->status);
         $this->assertEquals(30.0, (float) $record->objective_score);
-        $this->assertEquals(30.0, (float) $record->total_score);
     }
 
     // =========================================================================
@@ -321,9 +322,9 @@ class ExamGradingServiceTest extends TestCase
         $this->service->autoGrade($record);
         $record->refresh();
 
-        $this->assertEquals(ExamRecordStatus::Graded, $record->status);
+        // 所有考试统一进入待批改状态
+        $this->assertEquals(ExamRecordStatus::PendingReview, $record->status);
         $this->assertEquals(0.0, (float) $record->objective_score);
-        $this->assertEquals(0.0, (float) $record->total_score);
     }
 
     public function test_auto_grade_answer_for_nonexistent_question(): void
@@ -337,7 +338,8 @@ class ExamGradingServiceTest extends TestCase
         $this->service->autoGrade($record);
         $record->refresh();
 
-        $this->assertEquals(ExamRecordStatus::Graded, $record->status);
+        // 所有考试统一进入待批改状态
+        $this->assertEquals(ExamRecordStatus::PendingReview, $record->status);
         $this->assertEquals(0.0, (float) $record->objective_score);
     }
 
@@ -398,7 +400,7 @@ class ExamGradingServiceTest extends TestCase
         $this->assertEquals($mentor->id, $record->assigned_to);
     }
 
-    public function test_trial_employee_without_mentor_gets_null(): void
+    public function test_trial_employee_without_mentor_gets_admin(): void
     {
         $student = User::factory()->student()->trialEmployee()->create();
 
@@ -411,12 +413,12 @@ class ExamGradingServiceTest extends TestCase
         $this->service->autoGrade($record);
         $record->refresh();
 
-        $this->assertNull($record->assigned_to);
+        // 无导师时 fallback 到管理员
+        $this->assertEquals($this->admin->id, $record->assigned_to);
     }
 
     public function test_permanent_employee_gets_admin_assigned(): void
     {
-        $admin = User::factory()->admin()->create();
         $student = User::factory()->student()->permanentEmployee()->create();
 
         $exam = Exam::factory()->create();
@@ -428,11 +430,15 @@ class ExamGradingServiceTest extends TestCase
         $this->service->autoGrade($record);
         $record->refresh();
 
-        $this->assertEquals($admin->id, $record->assigned_to);
+        // 正式员工 fallback 到管理员（使用 setUp 中创建的）
+        $this->assertEquals($this->admin->id, $record->assigned_to);
     }
 
-    public function test_no_admin_in_system_gets_null(): void
+    public function test_no_admin_in_system_throws_exception(): void
     {
+        // 删除所有管理员
+        User::where('role', 'admin')->delete();
+
         $student = User::factory()->student()->permanentEmployee()->create();
 
         $exam = Exam::factory()->create();
@@ -441,13 +447,12 @@ class ExamGradingServiceTest extends TestCase
             ['question_id' => $question->id, 'answer' => 'Answer'],
         ]);
 
+        // 无管理员时应抛出异常
+        $this->expectException(\RuntimeException::class);
         $this->service->autoGrade($record);
-        $record->refresh();
-
-        $this->assertNull($record->assigned_to);
     }
 
-    public function test_inactive_mentor_not_assigned_to_student(): void
+    public function test_inactive_mentor_gets_admin_fallback(): void
     {
         $mentor = User::factory()->mentor()->create();
         $student = User::factory()->student()->trialEmployee()->create();
@@ -462,7 +467,8 @@ class ExamGradingServiceTest extends TestCase
         $this->service->autoGrade($record);
         $record->refresh();
 
-        $this->assertNull($record->assigned_to);
+        // inactive 导师不应被分配，应 fallback 到管理员
+        $this->assertEquals($this->admin->id, $record->assigned_to);
     }
 
     // =========================================================================
