@@ -112,6 +112,8 @@ class ExamGradingService
             if (isset($subjectiveScores[$answer['question_id']])) {
                 $score = (float) $subjectiveScores[$answer['question_id']];
                 $answer['score_awarded'] = $score;
+                $answer['is_correct'] = $score > 0;
+                $answer['auto_graded'] = true;
                 $subjectiveTotal += $score;
             }
         }
