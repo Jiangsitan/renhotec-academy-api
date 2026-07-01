@@ -96,26 +96,53 @@ class ExamGradingService
     }
 
     /**
-     * 导师/管理员批改主观题
+     * 导师/管理员批改答卷（支持所有题型）
      */
-    public function mentorReview(ExamRecord $record, User $mentor, array $subjectiveScores, ?string $comment): void
-    {
+    public function mentorReview(
+        ExamRecord $record, 
+        User $mentor, 
+        array $scores,           // 所有题目的分数 {question_id: score}
+        array $correctness,      // 所有题目的对错状态 {question_id: true/false}
+        ?string $comment
+    ): void {
         $answers = $record->answers ?? [];
+        $objectiveTotal = 0;
         $subjectiveTotal = 0;
-
+        
+        // 加载题目以确定类型
+        $exam = $record->exam()->with('questions')->first();
+        
         foreach ($answers as &$answer) {
-            if (isset($subjectiveScores[$answer['question_id']])) {
-                $score = (float) $subjectiveScores[$answer['question_id']];
-                $answer['score_awarded'] = $score;
-                $answer['is_correct'] = $score > 0;
-                $answer['auto_graded'] = true;
-                $subjectiveTotal += $score;
+            $questionId = $answer['question_id'];
+            $question = $exam->questions->firstWhere('id', $questionId);
+            
+            if (!$question) continue;
+            
+            // 更新分数（如果提供）
+            if (isset($scores[$questionId])) {
+                $answer['score_awarded'] = (float) $scores[$questionId];
+            }
+            
+            // 更新对错状态（如果提供）
+            if (isset($correctness[$questionId])) {
+                $answer['is_correct'] = (bool) $correctness[$questionId];
+            }
+            
+            // 标记为已手动评分
+            $answer['auto_graded'] = true;
+            
+            // 根据题型累加分数
+            if (in_array($question->type, ['single', 'multiple', 'truefalse'])) {
+                $objectiveTotal += $answer['score_awarded'];
+            } else {
+                $subjectiveTotal += $answer['score_awarded'];
             }
         }
-
+        
         $record->answers = $answers;
+        $record->objective_score = $objectiveTotal;
         $record->subjective_score = $subjectiveTotal;
-        $record->total_score = $record->objective_score + $subjectiveTotal;
+        $record->total_score = $objectiveTotal + $subjectiveTotal;
         $record->status = ExamRecordStatus::Graded;
         $record->graded_at = now();
         $record->graded_by = $mentor->id;

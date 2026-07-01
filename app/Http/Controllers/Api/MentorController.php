@@ -46,8 +46,10 @@ class MentorController extends Controller
     public function review(Request $request, ExamRecord $examRecord): JsonResponse
     {
         $validated = $request->validate([
-            'subjective_scores' => 'nullable|array',
-            'subjective_scores.*' => 'required|numeric|min:0',
+            'scores' => 'nullable|array',
+            'scores.*' => 'required|numeric|min:0',
+            'correctness' => 'nullable|array',
+            'correctness.*' => 'required|boolean',
             'comment' => 'nullable|string|max:1000',
             'action' => 'required|in:approve',
         ]);
@@ -63,14 +65,15 @@ class MentorController extends Controller
             return response()->json(['message' => '此答卷不需要批改'], 422);
         }
 
-        // 纯客观题答卷无需传 subjective_scores，直接使用已有的 objective_score
-        $subjectiveScores = $validated['subjective_scores'] ?? [];
+        $scores = $validated['scores'] ?? [];
+        $correctness = $validated['correctness'] ?? [];
 
         // 通过逻辑
         $this->gradingService->mentorReview(
             $examRecord,
             $mentor,
-            $subjectiveScores,
+            $scores,
+            $correctness,
             $validated['comment'] ?? null
         );
 
