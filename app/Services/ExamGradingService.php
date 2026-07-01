@@ -26,18 +26,20 @@ class ExamGradingService
             }
 
             // 简答题：需要导师/管理员手动批改
-            if ($question->type === 'short_answer') {
+            if ($question->type == 4) {
                 $answer['is_correct'] = null;
                 $answer['score_awarded'] = 0;
                 $answer['auto_graded'] = false;
                 return $answer;
             }
 
-            // 填空题：需要导师/管理员手动批改
-            if ($question->type === 'fill_blank') {
-                $answer['is_correct'] = null;
-                $answer['score_awarded'] = 0;
-                $answer['auto_graded'] = false;
+            // 填空题：自动评分（支持精确匹配和模糊匹配）
+            if ($question->type == 5) {
+                $isCorrect = $this->checkFillBlankAnswer($question, $answer['answer'] ?? '');
+                $answer['is_correct'] = $isCorrect;
+                $answer['score_awarded'] = $isCorrect ? (float) $question->score : 0;
+                $answer['auto_graded'] = true;
+                $objectiveScore += $answer['score_awarded'];
                 return $answer;
             }
 
@@ -155,10 +157,63 @@ class ExamGradingService
         $correct = $question->correct_answer;
 
         return match ($question->type) {
-            'single', 'truefalse' => strtolower(trim((string) $answer)) === strtolower(trim($correct)),
-            'multiple' => $this->checkMultipleAnswer($correct, $answer),
+            1, 3 => strtolower(trim((string) $answer)) === strtolower(trim($correct)),
+            2 => $this->checkMultipleAnswer($correct, $answer),
+            5 => $this->checkFillBlankAnswer($question, $answer),
             default => false,
         };
+    }
+
+    /**
+     * 填空题答案校验：支持精确匹配和模糊匹配（忽略标点、空格、大小写）
+     */
+    private function checkFillBlankAnswer(Question $question, string|array $answer): bool
+    {
+        $correctRaw = $question->correct_answer;
+        if (!$correctRaw) {
+            return false;
+        }
+
+        // 解析标准答案：JSON 数组或逗号分隔
+        try {
+            $correctArr = json_decode($correctRaw, true);
+            if (!is_array($correctArr)) {
+                $correctArr = array_map('trim', preg_split('/[,，]/', $correctArr));
+            }
+        } catch (\Throwable $e) {
+            $correctArr = array_map('trim', preg_split('/[,，]/', $correctRaw));
+        }
+
+        // 学生答案
+        $studentArr = is_array($answer) ? $answer : array_map('trim', preg_split('/[,，]/', (string) $answer));
+
+        // 数量不一致直接错误
+        if (count($correctArr) !== count($studentArr)) {
+            return false;
+        }
+
+        // 逐空比较（忽略标点、空格、大小写）
+        foreach ($correctArr as $i => $correctBlank) {
+            $studentBlank = $studentArr[$i] ?? '';
+            if ($this->normalizeForComparison($correctBlank) !== $this->normalizeForComparison($studentBlank)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * 标准化答案用于比较：去除标点、多余空格、统一小写
+     */
+    private function normalizeForComparison(string $str): string
+    {
+        $str = mb_strtolower(trim($str), 'UTF-8');
+        // Remove punctuation and special characters
+        $str = preg_replace('/[\p{P}\p{S}\x{2000}-\x{206F}\x{2E00}-\x{2E7F}\x{3000}-\x{303F}\x{FE30}-\x{FE4F}\x{FF00}-\x{FFEF}]/u', '', $str);
+        // 合并连续空格
+        $str = preg_replace('/\s+/u', ' ', $str);
+        return trim($str);
     }
 
     private function checkMultipleAnswer(string $correct, string|array $answer): bool

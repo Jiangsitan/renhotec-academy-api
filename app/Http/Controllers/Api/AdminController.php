@@ -999,7 +999,7 @@ class AdminController extends Controller
             if (is_string($validated['correct_answer'])) {
                 // 支持逗号或中文逗号分隔
                 $parts = preg_split('/[,，]/', $validated['correct_answer']);
-                $validated['correct_answer'] = json_encode(array_map('trim', array_filter($parts)), JSON_UNESCAPED_UNICODE);
+                $validated['correct_answer'] = json_encode(array_map('trim', $parts), JSON_UNESCAPED_UNICODE);
             }
         }
 
@@ -1033,11 +1033,11 @@ class AdminController extends Controller
         if (isset($validated['type']) && $validated['type'] == 5 && isset($validated['correct_answer']) && is_string($validated['correct_answer'])) {
             // 支持逗号或中文逗号分隔
             $parts = preg_split('/[,，]/', $validated['correct_answer']);
-            $validated['correct_answer'] = json_encode(array_map('trim', array_filter($parts)), JSON_UNESCAPED_UNICODE);
+            $validated['correct_answer'] = json_encode(array_map('trim', $parts), JSON_UNESCAPED_UNICODE);
         } elseif (isset($validated['correct_answer']) && is_string($validated['correct_answer']) && isset($question->type) && $question->type == 5) {
             // 支持逗号或中文逗号分隔
             $parts = preg_split('/[,，]/', $validated['correct_answer']);
-            $validated['correct_answer'] = json_encode(array_map('trim', array_filter($parts)), JSON_UNESCAPED_UNICODE);
+            $validated['correct_answer'] = json_encode(array_map('trim', $parts), JSON_UNESCAPED_UNICODE);
         }
 
         $question->update($validated);
