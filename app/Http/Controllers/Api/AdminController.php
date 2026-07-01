@@ -999,7 +999,7 @@ class AdminController extends Controller
             if (is_string($validated['correct_answer'])) {
                 // 支持逗号或中文逗号分隔
                 $parts = preg_split('/[,，]/', $validated['correct_answer']);
-                $validated['correct_answer'] = json_encode(array_map('trim', array_filter($parts)));
+                $validated['correct_answer'] = json_encode(array_map('trim', array_filter($parts)), JSON_UNESCAPED_UNICODE);
             }
         }
 
@@ -1033,11 +1033,11 @@ class AdminController extends Controller
         if (isset($validated['type']) && $validated['type'] == 5 && isset($validated['correct_answer']) && is_string($validated['correct_answer'])) {
             // 支持逗号或中文逗号分隔
             $parts = preg_split('/[,，]/', $validated['correct_answer']);
-            $validated['correct_answer'] = json_encode(array_map('trim', array_filter($parts)));
+            $validated['correct_answer'] = json_encode(array_map('trim', array_filter($parts)), JSON_UNESCAPED_UNICODE);
         } elseif (isset($validated['correct_answer']) && is_string($validated['correct_answer']) && isset($question->type) && $question->type == 5) {
             // 支持逗号或中文逗号分隔
             $parts = preg_split('/[,，]/', $validated['correct_answer']);
-            $validated['correct_answer'] = json_encode(array_map('trim', array_filter($parts)));
+            $validated['correct_answer'] = json_encode(array_map('trim', array_filter($parts)), JSON_UNESCAPED_UNICODE);
         }
 
         $question->update($validated);
@@ -1855,7 +1855,16 @@ class AdminController extends Controller
         ]);
 
         $file = $request->file('file');
-        $handle = fopen($file->getPathname(), 'r');
+        
+        // 检测并转换编码（处理中文Excel保存的GBK/GB2312编码）
+        $content = file_get_contents($file->getPathname());
+        $encoding = mb_detect_encoding($content, ['UTF-8', 'GBK', 'GB2312', 'BIG5'], true);
+        if ($encoding && $encoding !== 'UTF-8') {
+            $content = mb_convert_encoding($content, 'UTF-8', $encoding);
+        }
+        $handle = fopen('php://memory', 'r+');
+        fwrite($handle, $content);
+        rewind($handle);
 
         if (!$handle) {
             return response()->json(['message' => '无法读取文件'], 422);
@@ -2001,7 +2010,7 @@ class AdminController extends Controller
 
                         // 正确答案处理
                         if ($type === 5) { // 填空题
-                            $correctAnswer = json_encode(array_map('trim', explode(',', $correctAnswer)));
+                            $correctAnswer = json_encode(array_map('trim', explode(',', $correctAnswer)), JSON_UNESCAPED_UNICODE);
                         } elseif ($type === 4) { // 简答题
                             $correctAnswer = $correctAnswer ?: null;
                         }
