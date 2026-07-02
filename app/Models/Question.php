@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Utf8EncodingService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -53,5 +54,16 @@ class Question extends Model
             'fill_blank' => 5,
             default => is_numeric($value) ? (int) $value : 0,
         };
+    }
+
+    public function getCorrectAnswerAttribute($value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+        if (mb_check_encoding($value, 'UTF-8')) {
+            return $value;
+        }
+        return Utf8EncodingService::ensureUtf8($value);
     }
 }
