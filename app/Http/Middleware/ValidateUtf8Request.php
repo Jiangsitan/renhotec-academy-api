@@ -12,7 +12,7 @@ class ValidateUtf8Request
     public function handle(Request $request, Closure $next): Response
     {
         // 仅校验 application/json 请求体
-        if ($request->isJson() && $request->hasContent()) {
+        if ($request->isJson() && $request->getContent() !== false && strlen($request->getContent()) > 0) {
             $content = $request->getContent();
 
             if (!Utf8EncodingService::isValidUtf8($content)) {
