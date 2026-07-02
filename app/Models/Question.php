@@ -61,9 +61,8 @@ class Question extends Model
         if ($value === null) {
             return null;
         }
-        if (mb_check_encoding($value, 'UTF-8')) {
-            return $value;
-        }
+        // 始终通过 ensureUtf8 处理 — 它内部已检测双重编码
+        // 旧逻辑: mb_check_encoding 通过即返回，双重编码被遗漏
         return Utf8EncodingService::ensureUtf8($value);
     }
 }

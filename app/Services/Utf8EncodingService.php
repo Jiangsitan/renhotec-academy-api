@@ -27,8 +27,11 @@ class Utf8EncodingService
             return 'UTF-16BE';
         }
 
-        // 2. 如果已经是有效 UTF-8，直接返回
+        // 2. 如果已经是有效 UTF-8，检查是否是双重编码
         if (mb_check_encoding($content, 'UTF-8')) {
+            if (self::isDoubleEncodedUtf8($content)) {
+                return 'UTF-8_DOUBLE';
+            }
             return 'UTF-8';
         }
 
@@ -54,8 +57,18 @@ class Utf8EncodingService
             return $content;
         }
 
-        // 已经是有效 UTF-8
+        // 已经是有效 UTF-8 — 但仍需检查是否是双重编码
         if (mb_check_encoding($content, 'UTF-8')) {
+            $decoded = self::decodeDoubleUtf8($content);
+            if ($decoded !== $content) {
+                Log::info('[Utf8EncodingService] 检测到双重编码 UTF-8，已自动解码', [
+                    'original_length' => strlen($content),
+                    'decoded_length' => strlen($decoded),
+                    'original' => mb_substr($content, 0, 80),
+                    'decoded' => mb_substr($decoded, 0, 80),
+                ]);
+                return $decoded;
+            }
             return $content;
         }
 
@@ -94,6 +107,69 @@ class Utf8EncodingService
     public static function isValidUtf8(string $content): bool
     {
         return mb_check_encoding($content, 'UTF-8');
+    }
+
+
+    /**
+     * 检测字符串是否是双重编码的 UTF-8
+     * 典型场景: GBK 字节被错误解读为 ISO-8859-1 后再编码为 UTF-8
+     */
+    public static function isDoubleEncodedUtf8(string $content): bool
+    {
+        if (empty($content)) {
+            return false;
+        }
+
+        // 步骤 1: UTF-8 → ISO-8859-1（还原第二层编码，得到原始字节）
+        $rawBytes = @mb_convert_encoding($content, 'ISO-8859-1', 'UTF-8');
+        if ($rawBytes === false || strlen($rawBytes) === 0) {
+            return false;
+        }
+
+        // 步骤 2: 检查还原后的字节是否是合法的 GBK 编码
+        $gbkCheck = @mb_convert_encoding($rawBytes, 'UTF-8', 'GBK');
+        if ($gbkCheck === false) {
+            return false;
+        }
+
+        // 步骤 3: 如果转换成功且包含中文字符（非纯 ASCII），则认为是双重编码
+        // 且还原后的 UTF-8 应该和原始内容不同（说明确实发生了编码错误）
+        if ($gbkCheck === $content) {
+            return false; // 相同，不是双重编码
+        }
+
+        // 包含中文字符才认为是双重编码（避免误判纯英文数据）
+        return preg_match('/[\x{4e00}-\x{9fff}]/u', $gbkCheck) === 1;
+    }
+
+    /**
+     * 解码双重编码的 UTF-8 字符串
+     * 某些系统会将已有的 UTF-8 字符串再次按 Latin-1/ISO-8859-1 编码为 UTF-8
+     * 导致双重编码。此方法尝试解码这种双重编码。
+     */
+    public static function decodeDoubleUtf8(string $content): string
+    {
+        if (empty($content)) {
+            return $content;
+        }
+
+        if (!self::isDoubleEncodedUtf8($content)) {
+            return $content;
+        }
+
+        // 步骤 1: UTF-8 → ISO-8859-1（还原第二层编码，得到原始 GBK 字节）
+        $rawBytes = @mb_convert_encoding($content, 'ISO-8859-1', 'UTF-8');
+        if ($rawBytes === false || strlen($rawBytes) === 0) {
+            return $content;
+        }
+
+        // 步骤 2: GBK → UTF-8（还原第一层编码，得到正确的中文文本）
+        $decoded = @mb_convert_encoding($rawBytes, 'UTF-8', 'GBK');
+        if ($decoded === false || !mb_check_encoding($decoded, 'UTF-8')) {
+            return $content;
+        }
+
+        return $decoded;
     }
 
     /**

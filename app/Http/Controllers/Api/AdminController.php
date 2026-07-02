@@ -1016,12 +1016,16 @@ class AdminController extends Controller
             $validated['options'] = null;
             // correct_answer 存储 JSON 数组，如 ["前锁","前锁","后锁","后锁"]
             if (is_string($validated['correct_answer'])) {
-                // 支持逗号或中文逗号分隔
-                $parts = preg_split('/[,，]/', $validated['correct_answer']);
-                $validated['correct_answer'] = Utf8EncodingService::safeJsonEncode(
-                    array_map('trim', $parts),
-                    JSON_UNESCAPED_UNICODE
-                );
+                if (self::isJsonArray($validated['correct_answer'])) {
+                    // 已经是 JSON 数组，跳过转换
+                } else {
+                    // 支持逗号或中文逗号分隔
+                    $parts = preg_split('/[,，]/', $validated['correct_answer']);
+                    $validated['correct_answer'] = Utf8EncodingService::safeJsonEncode(
+                        array_map('trim', $parts),
+                        JSON_UNESCAPED_UNICODE
+                    );
+                }
             }
         }
 
@@ -1055,19 +1059,27 @@ class AdminController extends Controller
 
         // 填空题：将逗号分隔的答案转为 JSON 数组
         if (isset($validated['type']) && $validated['type'] == 5 && isset($validated['correct_answer']) && is_string($validated['correct_answer'])) {
-            // 支持逗号或中文逗号分隔
-            $parts = preg_split('/[,，]/', $validated['correct_answer']);
-            $validated['correct_answer'] = Utf8EncodingService::safeJsonEncode(
-                array_map('trim', $parts),
-                JSON_UNESCAPED_UNICODE
-            );
+            // 类型也在更新 — 支持逗号或中文逗号分隔
+            if (self::isJsonArray($validated['correct_answer'])) {
+                // 已经是 JSON 数组，跳过转换
+            } else {
+                $parts = preg_split('/[,，]/', $validated['correct_answer']);
+                $validated['correct_answer'] = Utf8EncodingService::safeJsonEncode(
+                    array_map('trim', $parts),
+                    JSON_UNESCAPED_UNICODE
+                );
+            }
         } elseif (isset($validated['correct_answer']) && is_string($validated['correct_answer']) && isset($question->type) && $question->type == 5) {
-            // 支持逗号或中文逗号分隔
-            $parts = preg_split('/[,，]/', $validated['correct_answer']);
-            $validated['correct_answer'] = Utf8EncodingService::safeJsonEncode(
-                array_map('trim', $parts),
-                JSON_UNESCAPED_UNICODE
-            );
+            // 类型未更新，但现有题目是填空题 — 支持逗号或中文逗号分隔
+            if (self::isJsonArray($validated['correct_answer'])) {
+                // 已经是 JSON 数组，跳过转换
+            } else {
+                $parts = preg_split('/[,，]/', $validated['correct_answer']);
+                $validated['correct_answer'] = Utf8EncodingService::safeJsonEncode(
+                    array_map('trim', $parts),
+                    JSON_UNESCAPED_UNICODE
+                );
+            }
         }
 
         $question->update($validated);
@@ -2088,5 +2100,19 @@ class AdminController extends Controller
                 'errors' => $errors,
             ],
         ]);
+    }
+
+    /**
+     * 检查字符串是否已经是 JSON 数组格式
+     * 防止填空题答案被双重转换
+     */
+    private static function isJsonArray(string $value): bool
+    {
+        $trimmed = trim($value);
+        if (!str_starts_with($trimmed, '[') || !str_ends_with($trimmed, ']')) {
+            return false;
+        }
+        $decoded = json_decode($trimmed, true);
+        return is_array($decoded);
     }
 }

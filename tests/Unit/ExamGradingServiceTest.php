@@ -530,7 +530,7 @@ class ExamGradingServiceTest extends TestCase
         $this->service->mentorReview($record, $mentor, [
             $q1->id => 18.0,
             $q2->id => 8.0,
-        ], 'Good work overall');
+        ], [], 'Good work overall');
 
         $record->refresh();
         $this->assertEquals(ExamRecordStatus::Graded, $record->status);
@@ -564,7 +564,7 @@ class ExamGradingServiceTest extends TestCase
         // Only grade q1
         $this->service->mentorReview($record, $mentor, [
             $q1->id => 15.0,
-        ], null);
+        ], [], null);
 
         $record->refresh();
         $this->assertEquals(15.0, (float) $record->subjective_score);
@@ -591,7 +591,7 @@ class ExamGradingServiceTest extends TestCase
 
         $this->service->mentorReview($record, $mentor, [
             $q1->id => 0.0,
-        ], 'No credit');
+        ], [], 'No credit');
 
         $record->refresh();
         $this->assertEquals(0.0, (float) $record->subjective_score);
@@ -619,7 +619,7 @@ class ExamGradingServiceTest extends TestCase
 
         $this->service->mentorReview($record, $mentor, [
             $q1->id => 5.0,
-        ], null);
+        ], [], null);
 
         $record->refresh();
         $this->assertNull($record->mentor_comment);
@@ -646,10 +646,136 @@ class ExamGradingServiceTest extends TestCase
 
         $this->service->mentorReview($record, $mentor, [
             $q1->id => 5.0,
-        ], null);
+        ], [], null);
 
         $record->refresh();
         $this->assertEquals($mentor->id, $record->graded_by);
+    }
+
+    // =========================================================================
+    // mentorReview — Correctness Tracking
+    // =========================================================================
+
+    public function test_mentor_review_updates_correctness(): void
+    {
+        $exam = Exam::factory()->create();
+        $q1 = Question::factory()->shortAnswer()->for($exam)->withScore(20)->create();
+        $q2 = Question::factory()->fillBlank()->for($exam)->withScore(10)->create();
+        $mentor = User::factory()->mentor()->create();
+        $user = User::factory()->student()->permanentEmployee()->create();
+
+        $record = ExamRecord::factory()
+            ->submitted()
+            ->for($user)
+            ->for($exam)
+            ->create([
+                'objective_score' => 0.0,
+                'answers' => [
+                    ['question_id' => $q1->id, 'answer' => 'Answer 1', 'is_correct' => null, 'score_awarded' => 0, 'auto_graded' => false],
+                    ['question_id' => $q2->id, 'answer' => 'PHP', 'is_correct' => null, 'score_awarded' => 0, 'auto_graded' => false],
+                ],
+            ]);
+
+        $this->service->mentorReview($record, $mentor, [
+            $q1->id => 18.0,
+            $q2->id => 8.0,
+        ], [
+            $q1->id => true,
+            $q2->id => false,
+        ], 'Partial credit');
+
+        $record->refresh();
+        $this->assertTrue($record->answers[0]['is_correct']);
+        $this->assertFalse($record->answers[1]['is_correct']);
+        $this->assertEquals(18.0, (float) $record->answers[0]['score_awarded']);
+        $this->assertEquals(8.0, (float) $record->answers[1]['score_awarded']);
+    }
+
+    public function test_mentor_review_empty_correctness_keeps_existing(): void
+    {
+        $exam = Exam::factory()->create();
+        $q1 = Question::factory()->shortAnswer()->for($exam)->withScore(20)->create();
+        $mentor = User::factory()->mentor()->create();
+        $user = User::factory()->student()->permanentEmployee()->create();
+
+        $record = ExamRecord::factory()
+            ->submitted()
+            ->for($user)
+            ->for($exam)
+            ->create([
+                'objective_score' => 0.0,
+                'answers' => [
+                    ['question_id' => $q1->id, 'answer' => 'Answer 1', 'is_correct' => true, 'score_awarded' => 15.0, 'auto_graded' => true],
+                ],
+            ]);
+
+        // Empty correctness — should keep existing is_correct value
+        $this->service->mentorReview($record, $mentor, [
+            $q1->id => 18.0,
+        ], [], null);
+
+        $record->refresh();
+        // is_correct should remain true since correctness was not provided
+        $this->assertTrue($record->answers[0]['is_correct']);
+        $this->assertEquals(18.0, (float) $record->answers[0]['score_awarded']);
+    }
+
+    // =========================================================================
+    // mentorReview — Mixed Objective + Subjective (type classification)
+    // =========================================================================
+
+    public function test_mentor_review_classifies_objective_and_subjective_correctly(): void
+    {
+        $exam = Exam::factory()->create();
+        // Objective types: single(1), multiple(2), truefalse(3)
+        $qSingle = Question::factory()->singleChoice()->for($exam)->withScore(10)->create(['correct_answer' => 'A']);
+        $qMultiple = Question::factory()->multipleChoice()->for($exam)->withScore(15)->create(['correct_answer' => 'A,B']);
+        $qTrueFalse = Question::factory()->trueFalse()->for($exam)->withScore(5)->create(['correct_answer' => 'True']);
+        // Subjective types: short_answer(4), fill_blank(5)
+        $qShort = Question::factory()->shortAnswer()->for($exam)->withScore(20)->create();
+        $qFill = Question::factory()->fillBlank()->for($exam)->withScore(10)->create();
+
+        $mentor = User::factory()->mentor()->create();
+        $user = User::factory()->student()->permanentEmployee()->create();
+
+        $record = ExamRecord::factory()
+            ->submitted()
+            ->for($user)
+            ->for($exam)
+            ->create([
+                'objective_score' => 0.0,
+                'answers' => [
+                    ['question_id' => $qSingle->id, 'answer' => 'A', 'is_correct' => true, 'score_awarded' => 0, 'auto_graded' => false],
+                    ['question_id' => $qMultiple->id, 'answer' => ['A', 'B'], 'is_correct' => true, 'score_awarded' => 0, 'auto_graded' => false],
+                    ['question_id' => $qTrueFalse->id, 'answer' => 'True', 'is_correct' => true, 'score_awarded' => 0, 'auto_graded' => false],
+                    ['question_id' => $qShort->id, 'answer' => 'Essay answer', 'is_correct' => null, 'score_awarded' => 0, 'auto_graded' => false],
+                    ['question_id' => $qFill->id, 'answer' => 'Laravel', 'is_correct' => null, 'score_awarded' => 0, 'auto_graded' => false],
+                ],
+            ]);
+
+        $this->service->mentorReview($record, $mentor, [
+            $qSingle->id => 10.0,
+            $qMultiple->id => 12.0,
+            $qTrueFalse->id => 5.0,
+            $qShort->id => 18.0,
+            $qFill->id => 8.0,
+        ], [
+            $qSingle->id => true,
+            $qMultiple->id => true,
+            $qTrueFalse->id => true,
+            $qShort->id => true,
+            $qFill->id => false,
+        ], 'Good');
+
+        $record->refresh();
+
+        // Objective: single(10) + multiple(12) + truefalse(5) = 27
+        $this->assertEquals(27.0, (float) $record->objective_score);
+        // Subjective: short(18) + fill(8) = 26
+        $this->assertEquals(26.0, (float) $record->subjective_score);
+        // Total: 27 + 26 = 53
+        $this->assertEquals(53.0, (float) $record->total_score);
+        $this->assertEquals(ExamRecordStatus::Graded, $record->status);
     }
 
     // =========================================================================
@@ -692,11 +818,20 @@ class ExamGradingServiceTest extends TestCase
 
         // Step 3: Mentor reviews
         $this->service->mentorReview($record, $mentor, [
+            $q1->id => 10.0,
+            $q2->id => 0.0,
             $q3->id => 18.0,
+        ], [
+            $q1->id => true,
+            $q2->id => false,
+            $q3->id => true,
         ], 'Good answer');
 
         $record->refresh();
         $this->assertEquals(ExamRecordStatus::Graded, $record->status);
+        // Objective: single(10) + truefalse(0) = 10
+        $this->assertEquals(10.0, (float) $record->objective_score);
+        // Subjective: short_answer(18)
         $this->assertEquals(18.0, (float) $record->subjective_score);
         $this->assertEquals(28.0, (float) $record->total_score);
         $this->assertEquals('Good answer', $record->mentor_comment);

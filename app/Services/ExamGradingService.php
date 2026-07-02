@@ -33,13 +33,11 @@ class ExamGradingService
                 return $answer;
             }
 
-            // 填空题：自动评分（支持精确匹配和模糊匹配）
+            // 填空题：需要导师/管理员手动批改（同简答题处理）
             if ($question->type == 5) {
-                $isCorrect = $this->checkFillBlankAnswer($question, $answer['answer'] ?? '');
-                $answer['is_correct'] = $isCorrect;
-                $answer['score_awarded'] = $isCorrect ? (float) $question->score : 0;
-                $answer['auto_graded'] = true;
-                $objectiveScore += $answer['score_awarded'];
+                $answer['is_correct'] = null;
+                $answer['score_awarded'] = 0;
+                $answer['auto_graded'] = false;
                 return $answer;
             }
 
@@ -105,11 +103,12 @@ class ExamGradingService
         User $mentor, 
         array $scores,           // 所有题目的分数 {question_id: score}
         array $correctness,      // 所有题目的对错状态 {question_id: true/false}
-        ?string $comment
+        ?string $comment = null
     ): void {
         $answers = $record->answers ?? [];
         $objectiveTotal = 0;
         $subjectiveTotal = 0;
+        $hasObjectiveInScores = false;
         
         // 加载题目以确定类型
         $exam = $record->exam()->with('questions')->first();
@@ -133,18 +132,27 @@ class ExamGradingService
             // 标记为已手动评分
             $answer['auto_graded'] = true;
             
-            // 根据题型累加分数
-            if (in_array($question->type, ['single', 'multiple', 'truefalse'])) {
-                $objectiveTotal += $answer['score_awarded'];
+            // 根据题型累加分数（类型为整数：1=single, 2=multiple, 3=truefalse, 4=short_answer, 5=fill_blank）
+            if (in_array($question->type, [1, 2, 3])) {
+                // 仅计算 $scores 中提供的客观题分数
+                if (isset($scores[$questionId])) {
+                    $objectiveTotal += $answer['score_awarded'];
+                    $hasObjectiveInScores = true;
+                }
             } else {
                 $subjectiveTotal += $answer['score_awarded'];
             }
         }
         
         $record->answers = $answers;
-        $record->objective_score = $objectiveTotal;
+        
+        // 如果本次批改未包含客观题，保留原有的客观题分数
+        $record->objective_score = $hasObjectiveInScores 
+            ? $objectiveTotal 
+            : (float) ($record->objective_score ?? 0);
+            
         $record->subjective_score = $subjectiveTotal;
-        $record->total_score = $objectiveTotal + $subjectiveTotal;
+        $record->total_score = $record->objective_score + $subjectiveTotal;
         $record->status = ExamRecordStatus::Graded;
         $record->graded_at = now();
         $record->graded_by = $mentor->id;
