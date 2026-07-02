@@ -24,6 +24,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules\Password;
 
@@ -1029,18 +1030,57 @@ class AdminController extends Controller
             'sort_order' => 'nullable|integer|min:0',
         ]);
 
+        // DEBUG: 记录填空题转换前的完整状态
+        if (isset($validated['type']) || (isset($validated['correct_answer']) && is_string($validated['correct_answer']))) {
+            Log::info('[updateQuestion] DEBUG BEFORE', [
+                'question_id' => $question->id,
+                'validated_type' => $validated['type'] ?? 'NOT_SET',
+                'validated_type_typeof' => isset($validated['type']) ? gettype($validated['type']) : 'N/A',
+                'validated_correct_answer' => $validated['correct_answer'] ?? 'NOT_SET',
+                'question_current_type' => $question->type,
+                'question_current_type_typeof' => gettype($question->type),
+                'condition_1_isset_type' => isset($validated['type']),
+                'condition_2_type_eq_5' => isset($validated['type']) ? ($validated['type'] == 5) : 'N/A',
+                'condition_3_isset_answer' => isset($validated['correct_answer']),
+                'condition_4_is_string' => isset($validated['correct_answer']) ? is_string($validated['correct_answer']) : 'N/A',
+                'condition_elseif_question_type_eq_5' => isset($question->type) ? ($question->type == 5) : 'N/A',
+            ]);
+        }
+
         // 填空题：将逗号分隔的答案转为 JSON 数组
         if (isset($validated['type']) && $validated['type'] == 5 && isset($validated['correct_answer']) && is_string($validated['correct_answer'])) {
             // 支持逗号或中文逗号分隔
             $parts = preg_split('/[,，]/', $validated['correct_answer']);
             $validated['correct_answer'] = json_encode(array_map('trim', $parts), JSON_UNESCAPED_UNICODE);
+
+            Log::info('[updateQuestion] DEBUG AFTER IF BRANCH', [
+                'question_id' => $question->id,
+                'parts_count' => count($parts),
+                'parts_sample' => array_slice($parts, 0, 5),
+                'correct_answer_after' => $validated['correct_answer'],
+            ]);
         } elseif (isset($validated['correct_answer']) && is_string($validated['correct_answer']) && isset($question->type) && $question->type == 5) {
             // 支持逗号或中文逗号分隔
             $parts = preg_split('/[,，]/', $validated['correct_answer']);
             $validated['correct_answer'] = json_encode(array_map('trim', $parts), JSON_UNESCAPED_UNICODE);
+
+            Log::info('[updateQuestion] DEBUG AFTER ELSEIF BRANCH', [
+                'question_id' => $question->id,
+                'parts_count' => count($parts),
+                'parts_sample' => array_slice($parts, 0, 5),
+                'correct_answer_after' => $validated['correct_answer'],
+            ]);
         }
 
         $question->update($validated);
+
+        // DEBUG: 保存后的值
+        $fresh = $question->fresh();
+        Log::info('[updateQuestion] DEBUG AFTER SAVE', [
+            'question_id' => $question->id,
+            'fresh_correct_answer' => $fresh->correct_answer ?? 'NULL',
+            'fresh_type' => $fresh->type ?? 'NULL',
+        ]);
 
         return response()->json([
             'message' => '题目已更新',
