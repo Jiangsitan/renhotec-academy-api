@@ -37,4 +37,21 @@ class Question extends Model
     {
         return $this->belongsTo(Course::class);
     }
+
+    /**
+     * 将 MySQL ENUM 字符串统一转为整数
+     * MySQL ENUM('single','multiple','truefalse','short_answer','fill_blank')
+     * 前端统一使用整数 1-5
+     */
+    public function getTypeAttribute($value): int
+    {
+        return match($value) {
+            'single' => 1,
+            'multiple' => 2,
+            'truefalse' => 3,
+            'short_answer' => 4,
+            'fill_blank' => 5,
+            default => is_numeric($value) ? (int) $value : 0,
+        };
+    }
 }
