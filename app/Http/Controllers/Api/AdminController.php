@@ -20,6 +20,8 @@ use App\Models\User;
 use App\Notifications\NewCourseNotification;
 use App\Services\AuditLogService;
 use App\Services\ExamGradingService;
+use App\Services\Utf8EncodingService;
+use App\Traits\EnsuresUtf8;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +32,8 @@ use Illuminate\Validation\Rules\Password;
 
 class AdminController extends Controller
 {
+    use EnsuresUtf8;
+
     public function __construct(
         private AuditLogService $auditService,
         private \App\Services\ExamGradingService $gradingService,
@@ -125,6 +129,8 @@ class AdminController extends Controller
             'mentor_id' => 'nullable|exists:users,id',
         ]);
 
+        $validated = $this->ensureUtf8Fields($validated, ['name', 'department', 'position']);
+
         $mentorId = $validated['mentor_id'] ?? null;
         unset($validated['mentor_id']);
 
@@ -169,6 +175,8 @@ class AdminController extends Controller
             'mentor_id' => 'nullable|exists:users,id',
             'role' => 'sometimes|in:student,mentor,admin',
         ]);
+
+        $validated = $this->ensureUtf8Fields($validated, ['name', 'department', 'position']);
 
         // 只有管理员可以修改角色
         if (isset($validated['role']) && $request->user()->role->value !== 'admin') {
@@ -635,6 +643,8 @@ class AdminController extends Controller
             'sort_order' => 'nullable|integer|min:0',
         ]);
 
+        $validated = $this->ensureUtf8Fields($validated, ['title', 'description', 'content_url', 'file_name']);
+
         // 自动从系列获取分类 ID
         $series = Series::findOrFail($validated['series_id']);
         $validated['category_id'] = $series->category_id;
@@ -682,6 +692,8 @@ class AdminController extends Controller
             'duration' => 'nullable|integer|min:0',
             'sort_order' => 'nullable|integer|min:0',
         ]);
+
+        $validated = $this->ensureUtf8Fields($validated, ['title', 'description', 'content_url', 'file_name']);
 
         // 如果更新了系列，自动更新分类
         if (isset($validated['series_id'])) {
@@ -863,6 +875,8 @@ class AdminController extends Controller
             'passing_score' => 'required|numeric|min:0|max:100',
         ]);
 
+        $validated = $this->ensureUtf8Fields($validated, ['title']);
+
         $courseIds = $validated['course_ids'] ?? [];
         unset($validated['course_ids']);
 
@@ -897,6 +911,8 @@ class AdminController extends Controller
             'time_limit' => 'sometimes|integer|min:1',
             'passing_score' => 'sometimes|numeric|min:0|max:100',
         ]);
+
+        $validated = $this->ensureUtf8Fields($validated, ['title']);
 
         $courseIds = $validated['course_ids'] ?? null;
         unset($validated['course_ids']);
@@ -977,6 +993,8 @@ class AdminController extends Controller
             'sort_order' => 'nullable|integer|min:0',
         ]);
 
+        $validated = $this->ensureUtf8Fields($validated, ['content', 'correct_answer']);
+
         $validated['exam_id'] = $exam->id;
 
         // 检查总分是否超过 100
@@ -1000,7 +1018,10 @@ class AdminController extends Controller
             if (is_string($validated['correct_answer'])) {
                 // 支持逗号或中文逗号分隔
                 $parts = preg_split('/[,，]/', $validated['correct_answer']);
-                $validated['correct_answer'] = json_encode(array_map('trim', $parts), JSON_UNESCAPED_UNICODE);
+                $validated['correct_answer'] = Utf8EncodingService::safeJsonEncode(
+                    array_map('trim', $parts),
+                    JSON_UNESCAPED_UNICODE
+                );
             }
         }
 
@@ -1030,57 +1051,26 @@ class AdminController extends Controller
             'sort_order' => 'nullable|integer|min:0',
         ]);
 
-        // DEBUG: 记录填空题转换前的完整状态
-        if (isset($validated['type']) || (isset($validated['correct_answer']) && is_string($validated['correct_answer']))) {
-            Log::info('[updateQuestion] DEBUG BEFORE', [
-                'question_id' => $question->id,
-                'validated_type' => $validated['type'] ?? 'NOT_SET',
-                'validated_type_typeof' => isset($validated['type']) ? gettype($validated['type']) : 'N/A',
-                'validated_correct_answer' => $validated['correct_answer'] ?? 'NOT_SET',
-                'question_current_type' => $question->type,
-                'question_current_type_typeof' => gettype($question->type),
-                'condition_1_isset_type' => isset($validated['type']),
-                'condition_2_type_eq_5' => isset($validated['type']) ? ($validated['type'] == 5) : 'N/A',
-                'condition_3_isset_answer' => isset($validated['correct_answer']),
-                'condition_4_is_string' => isset($validated['correct_answer']) ? is_string($validated['correct_answer']) : 'N/A',
-                'condition_elseif_question_type_eq_5' => isset($question->type) ? ($question->type == 5) : 'N/A',
-            ]);
-        }
+        $validated = $this->ensureUtf8Fields($validated, ['content', 'correct_answer']);
 
         // 填空题：将逗号分隔的答案转为 JSON 数组
         if (isset($validated['type']) && $validated['type'] == 5 && isset($validated['correct_answer']) && is_string($validated['correct_answer'])) {
             // 支持逗号或中文逗号分隔
             $parts = preg_split('/[,，]/', $validated['correct_answer']);
-            $validated['correct_answer'] = json_encode(array_map('trim', $parts), JSON_UNESCAPED_UNICODE);
-
-            Log::info('[updateQuestion] DEBUG AFTER IF BRANCH', [
-                'question_id' => $question->id,
-                'parts_count' => count($parts),
-                'parts_sample' => array_slice($parts, 0, 5),
-                'correct_answer_after' => $validated['correct_answer'],
-            ]);
+            $validated['correct_answer'] = Utf8EncodingService::safeJsonEncode(
+                array_map('trim', $parts),
+                JSON_UNESCAPED_UNICODE
+            );
         } elseif (isset($validated['correct_answer']) && is_string($validated['correct_answer']) && isset($question->type) && $question->type == 5) {
             // 支持逗号或中文逗号分隔
             $parts = preg_split('/[,，]/', $validated['correct_answer']);
-            $validated['correct_answer'] = json_encode(array_map('trim', $parts), JSON_UNESCAPED_UNICODE);
-
-            Log::info('[updateQuestion] DEBUG AFTER ELSEIF BRANCH', [
-                'question_id' => $question->id,
-                'parts_count' => count($parts),
-                'parts_sample' => array_slice($parts, 0, 5),
-                'correct_answer_after' => $validated['correct_answer'],
-            ]);
+            $validated['correct_answer'] = Utf8EncodingService::safeJsonEncode(
+                array_map('trim', $parts),
+                JSON_UNESCAPED_UNICODE
+            );
         }
 
         $question->update($validated);
-
-        // DEBUG: 保存后的值
-        $fresh = $question->fresh();
-        Log::info('[updateQuestion] DEBUG AFTER SAVE', [
-            'question_id' => $question->id,
-            'fresh_correct_answer' => $fresh->correct_answer ?? 'NULL',
-            'fresh_type' => $fresh->type ?? 'NULL',
-        ]);
 
         return response()->json([
             'message' => '题目已更新',
@@ -1297,6 +1287,7 @@ class AdminController extends Controller
         $example = ['EMP001', '张三', 'zhangsan@example.com', '13800138000', '123456', 'student', '技术部', '工程师', '2024-01-15', '2024-07-15', 'MENTOR001'];
 
         $csv = implode(',', $header) . "\n" . implode(',', $example) . "\n";
+        $csv = Utf8EncodingService::addBom($csv);
 
         return response($csv, 200, [
             'Content-Type' => 'text/csv; charset=UTF-8',
@@ -1311,7 +1302,13 @@ class AdminController extends Controller
         ]);
 
         $file = $request->file('file');
-        $handle = fopen($file->getPathname(), 'r');
+
+        // 检测并转换编码（处理中文Excel保存的GBK/GB2312编码）
+        $content = file_get_contents($file->getPathname());
+        $content = Utf8EncodingService::ensureUtf8($content);
+        $handle = fopen('php://memory', 'r+');
+        fwrite($handle, $content);
+        rewind($handle);
 
         if (!$handle) {
             return response()->json(['message' => '无法读取文件'], 422);
@@ -1561,6 +1558,7 @@ class AdminController extends Controller
         ];
 
         $csv = implode("\n", $lines) . "\n";
+        $csv = Utf8EncodingService::addBom($csv);
 
         return response($csv, 200, [
             'Content-Type' => 'text/csv; charset=UTF-8',
@@ -1634,7 +1632,12 @@ class AdminController extends Controller
 
     private function importFromCsv($file, ?string $zipTempDir): JsonResponse
     {
-        $handle = fopen($file->getPathname(), 'r');
+        // 检测并转换编码（处理中文Excel保存的GBK/GB2312编码）
+        $content = file_get_contents($file->getPathname());
+        $content = Utf8EncodingService::ensureUtf8($content);
+        $handle = fopen('php://memory', 'r+');
+        fwrite($handle, $content);
+        rewind($handle);
 
         if (!$handle) {
             return response()->json(['message' => '无法读取文件'], 422);
@@ -1881,6 +1884,7 @@ class AdminController extends Controller
         ];
 
         $csv = implode("\n", $lines) . "\n";
+        $csv = Utf8EncodingService::addBom($csv);
 
         return response($csv, 200, [
             'Content-Type' => 'text/csv; charset=UTF-8',
@@ -1898,10 +1902,7 @@ class AdminController extends Controller
         
         // 检测并转换编码（处理中文Excel保存的GBK/GB2312编码）
         $content = file_get_contents($file->getPathname());
-        $encoding = mb_detect_encoding($content, ['UTF-8', 'GBK', 'GB2312', 'BIG5'], true);
-        if ($encoding && $encoding !== 'UTF-8') {
-            $content = mb_convert_encoding($content, 'UTF-8', $encoding);
-        }
+        $content = Utf8EncodingService::ensureUtf8($content);
         $handle = fopen('php://memory', 'r+');
         fwrite($handle, $content);
         rewind($handle);

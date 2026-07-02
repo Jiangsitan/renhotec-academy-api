@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->api(prepend: [
+            \App\Http\Middleware\ValidateUtf8Request::class,
             \App\Http\Middleware\JsonUnicodeMiddleware::class,
         ]);
         $middleware->alias([
