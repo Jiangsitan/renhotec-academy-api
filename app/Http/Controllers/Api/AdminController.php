@@ -1015,19 +1015,13 @@ class AdminController extends Controller
         if ($validated['type'] == 5) { // 填空题
             $validated['options'] = null;
             if (is_string($validated['correct_answer'])) {
-                if (self::isJsonArray($validated['correct_answer'])) {
-                    // 已经是 JSON 数组，跳过转换
-                } else {
-                    $parts = preg_split('/[,，]/', $validated['correct_answer']);
-                    $parts = array_map('trim', $parts);
-                    // 裁剪尾部空元素
-                    while (count($parts) > 0 && end($parts) === '') {
-                        array_pop($parts);
+                $decoded = json_decode($validated['correct_answer'], true);
+                if (is_array($decoded)) {
+                    // 前端发的 JSON 数组，裁剪尾部空元素后直接存
+                    while (count($decoded) > 0 && end($decoded) === '') {
+                        array_pop($decoded);
                     }
-                    $validated['correct_answer'] = Utf8EncodingService::safeJsonEncode(
-                        $parts,
-                        JSON_UNESCAPED_UNICODE
-                    );
+                    $validated['correct_answer'] = json_encode($decoded, JSON_UNESCAPED_UNICODE);
                 }
             }
         }
@@ -1060,36 +1054,15 @@ class AdminController extends Controller
 
         $validated = $this->ensureUtf8Fields($validated, ['content', 'correct_answer']);
 
-        // 填空题：将逗号分隔的答案转为 JSON 数组
-        if (isset($validated['type']) && $validated['type'] == 5 && isset($validated['correct_answer']) && is_string($validated['correct_answer'])) {
-            if (self::isJsonArray($validated['correct_answer'])) {
-                // 已经是 JSON 数组，跳过转换
-            } else {
-                $parts = preg_split('/[,，]/', $validated['correct_answer']);
-                $parts = array_map('trim', $parts);
-                // 裁剪尾部空元素
-                while (count($parts) > 0 && end($parts) === '') {
-                    array_pop($parts);
+        // 填空题：前端发 JSON 数组，直接解码存储
+        if (isset($validated['correct_answer']) && is_string($validated['correct_answer'])
+            && ((isset($validated['type']) && $validated['type'] == 5) || (isset($question->type) && $question->type == 5))) {
+            $decoded = json_decode($validated['correct_answer'], true);
+            if (is_array($decoded)) {
+                while (count($decoded) > 0 && end($decoded) === '') {
+                    array_pop($decoded);
                 }
-                $validated['correct_answer'] = Utf8EncodingService::safeJsonEncode(
-                    $parts,
-                    JSON_UNESCAPED_UNICODE
-                );
-            }
-        } elseif (isset($validated['correct_answer']) && is_string($validated['correct_answer']) && isset($question->type) && $question->type == 5) {
-            if (self::isJsonArray($validated['correct_answer'])) {
-                // 已经是 JSON 数组，跳过转换
-            } else {
-                $parts = preg_split('/[,，]/', $validated['correct_answer']);
-                $parts = array_map('trim', $parts);
-                // 裁剪尾部空元素
-                while (count($parts) > 0 && end($parts) === '') {
-                    array_pop($parts);
-                }
-                $validated['correct_answer'] = Utf8EncodingService::safeJsonEncode(
-                    $parts,
-                    JSON_UNESCAPED_UNICODE
-                );
+                $validated['correct_answer'] = json_encode($decoded, JSON_UNESCAPED_UNICODE);
             }
         }
 
