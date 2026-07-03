@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Services\Utf8EncodingService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -58,11 +57,7 @@ class Question extends Model
 
     public function getCorrectAnswerAttribute($value): ?string
     {
-        if ($value === null) {
-            return null;
-        }
-        // 始终通过 ensureUtf8 处理 — 它内部已检测双重编码
-        // 旧逻辑: mb_check_encoding 通过即返回，双重编码被遗漏
-        return Utf8EncodingService::ensureUtf8($value);
+        // 连接字符集已是 utf8mb4，DB 存储正确 UTF-8，直接返回
+        return $value;
     }
 }

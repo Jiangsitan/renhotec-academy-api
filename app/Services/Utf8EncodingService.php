@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Log;
 
 class Utf8EncodingService
 {
@@ -50,6 +49,8 @@ class Utf8EncodingService
 
     /**
      * 确保字符串为有效 UTF-8 编码
+     * 连接字符集已设为 utf8mb4，双重编码不再可能发生
+     * 此方法仅验证有效性，无效时清理非法字节
      */
     public static function ensureUtf8(string $content): string
     {
@@ -57,48 +58,13 @@ class Utf8EncodingService
             return $content;
         }
 
-        // 已经是有效 UTF-8 — 但仍需检查是否是双重编码
+        // 已经是有效 UTF-8，直接返回
         if (mb_check_encoding($content, 'UTF-8')) {
-            $decoded = self::decodeDoubleUtf8($content);
-            if ($decoded !== $content) {
-                Log::info('[Utf8EncodingService] 检测到双重编码 UTF-8，已自动解码', [
-                    'original_length' => strlen($content),
-                    'decoded_length' => strlen($decoded),
-                    'original' => mb_substr($content, 0, 80),
-                    'decoded' => mb_substr($decoded, 0, 80),
-                ]);
-                return $decoded;
-            }
             return $content;
         }
 
-        // 检测源编码并转换
-        $sourceEncoding = self::detectEncoding($content);
-
-        if ($sourceEncoding === 'UTF-8') {
-            return $content;
-        }
-
-        if ($sourceEncoding === 'UNKNOWN') {
-            // 无法识别编码，尝试清理非法字节
-            Log::warning('[Utf8EncodingService] 无法识别编码，尝试清理非法字节', [
-                'content_length' => strlen($content),
-                'sample' => substr($content, 0, 100),
-            ]);
-            return self::sanitize($content);
-        }
-
-        $converted = mb_convert_encoding($content, 'UTF-8', $sourceEncoding);
-
-        if ($converted === false || !mb_check_encoding($converted, 'UTF-8')) {
-            Log::warning('[Utf8EncodingService] 编码转换失败', [
-                'source_encoding' => $sourceEncoding,
-                'content_length' => strlen($content),
-            ]);
-            return self::sanitize($content);
-        }
-
-        return $converted;
+        // 非法字节，清理后返回
+        return self::sanitize($content);
     }
 
     /**
