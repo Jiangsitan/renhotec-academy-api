@@ -1014,7 +1014,6 @@ class AdminController extends Controller
 
         if ($validated['type'] == 5) { // 填空题
             $validated['options'] = null;
-            // correct_answer 存储 JSON 数组，如 ["前锁","前锁","后锁","后锁"]
             if (is_string($validated['correct_answer'])) {
                 if (self::isJsonArray($validated['correct_answer'])) {
                     // 已经是 JSON 数组，跳过转换
@@ -1024,11 +1023,14 @@ class AdminController extends Controller
                     $parts = array_map(function ($p) {
                         return Utf8EncodingService::sanitize(trim($p));
                     }, $parts);
-                    $converted = Utf8EncodingService::safeJsonEncode(
+                    // 裁剪尾部空元素，确保存储的数组长度与实际空位数量一致
+                    while (count($parts) > 0 && end($parts) === '') {
+                        array_pop($parts);
+                    }
+                    $validated['correct_answer'] = Utf8EncodingService::safeJsonEncode(
                         $parts,
                         JSON_UNESCAPED_UNICODE
                     );
-                    $validated['correct_answer'] = $converted;
                 }
             }
         }
@@ -1070,6 +1072,10 @@ class AdminController extends Controller
                 $parts = array_map(function ($p) {
                     return Utf8EncodingService::sanitize(trim($p));
                 }, $parts);
+                // 裁剪尾部空元素
+                while (count($parts) > 0 && end($parts) === '') {
+                    array_pop($parts);
+                }
                 $validated['correct_answer'] = Utf8EncodingService::safeJsonEncode(
                     $parts,
                     JSON_UNESCAPED_UNICODE
@@ -1083,6 +1089,10 @@ class AdminController extends Controller
                 $parts = array_map(function ($p) {
                     return Utf8EncodingService::sanitize(trim($p));
                 }, $parts);
+                // 裁剪尾部空元素
+                while (count($parts) > 0 && end($parts) === '') {
+                    array_pop($parts);
+                }
                 $validated['correct_answer'] = Utf8EncodingService::safeJsonEncode(
                     $parts,
                     JSON_UNESCAPED_UNICODE
@@ -2074,6 +2084,10 @@ class AdminController extends Controller
                             $parts = array_map(function ($p) {
                                 return Utf8EncodingService::sanitize(trim($p));
                             }, explode(',', $correctAnswer));
+                            // 裁剪尾部空元素
+                            while (count($parts) > 0 && end($parts) === '') {
+                                array_pop($parts);
+                            }
                             $correctAnswer = Utf8EncodingService::safeJsonEncode($parts, JSON_UNESCAPED_UNICODE);
                         } elseif ($type === 4) { // 简答题
                             $correctAnswer = $correctAnswer ?: null;
