@@ -1019,17 +1019,15 @@ class AdminController extends Controller
                 if (self::isJsonArray($validated['correct_answer'])) {
                     // 已经是 JSON 数组，跳过转换
                 } else {
-                    // 支持逗号或中文逗号分隔
+                    // 支持逗号或中文逗号分隔，逐元素清理无效 UTF-8 字节
                     $parts = preg_split('/[,，]/', $validated['correct_answer']);
+                    $parts = array_map(function ($p) {
+                        return Utf8EncodingService::sanitize(trim($p));
+                    }, $parts);
                     $converted = Utf8EncodingService::safeJsonEncode(
-                        array_map('trim', $parts),
+                        $parts,
                         JSON_UNESCAPED_UNICODE
                     );
-                    \Log::debug('createQuestion FILL_BLANK CONVERT', [
-                        'correct_answer_raw' => $validated['correct_answer'],
-                        'parts_count' => count($parts),
-                        'converted' => $converted,
-                    ]);
                     $validated['correct_answer'] = $converted;
                 }
             }
@@ -1063,68 +1061,40 @@ class AdminController extends Controller
 
         $validated = $this->ensureUtf8Fields($validated, ['content', 'correct_answer']);
 
-        // Debug: 记录原始输入
-        \Log::debug('updateQuestion RAW INPUT', [
-            'question_id' => $question->id,
-            'correct_answer_raw' => $request->input('correct_answer'),
-            'correct_answer_type' => gettype($request->input('correct_answer')),
-            'correct_answer_length' => strlen((string) $request->input('correct_answer')),
-            'type' => $request->input('type'),
-            'question_current_type' => $question->type,
-        ]);
-
         // 填空题：将逗号分隔的答案转为 JSON 数组
         if (isset($validated['type']) && $validated['type'] == 5 && isset($validated['correct_answer']) && is_string($validated['correct_answer'])) {
-            // 类型也在更新 — 支持逗号或中文逗号分隔
             if (self::isJsonArray($validated['correct_answer'])) {
                 // 已经是 JSON 数组，跳过转换
             } else {
                 $parts = preg_split('/[,，]/', $validated['correct_answer']);
-                $converted = Utf8EncodingService::safeJsonEncode(
-                    array_map('trim', $parts),
+                $parts = array_map(function ($p) {
+                    return Utf8EncodingService::sanitize(trim($p));
+                }, $parts);
+                $validated['correct_answer'] = Utf8EncodingService::safeJsonEncode(
+                    $parts,
                     JSON_UNESCAPED_UNICODE
                 );
-                // Debug: 记录转换结果
-                \Log::debug('updateQuestion FILL_BLANK CONVERT (type in update)', [
-                    'question_id' => $question->id,
-                    'parts_count' => count($parts),
-                    'converted' => $converted,
-                ]);
-                $validated['correct_answer'] = $converted;
             }
         } elseif (isset($validated['correct_answer']) && is_string($validated['correct_answer']) && isset($question->type) && $question->type == 5) {
-            // 类型未更新，但现有题目是填空题 — 支持逗号或中文逗号分隔
             if (self::isJsonArray($validated['correct_answer'])) {
                 // 已经是 JSON 数组，跳过转换
             } else {
                 $parts = preg_split('/[,，]/', $validated['correct_answer']);
-                $converted = Utf8EncodingService::safeJsonEncode(
-                    array_map('trim', $parts),
+                $parts = array_map(function ($p) {
+                    return Utf8EncodingService::sanitize(trim($p));
+                }, $parts);
+                $validated['correct_answer'] = Utf8EncodingService::safeJsonEncode(
+                    $parts,
                     JSON_UNESCAPED_UNICODE
                 );
-                // Debug: 记录转换结果
-                \Log::debug('updateQuestion FILL_BLANK CONVERT (existing type)', [
-                    'question_id' => $question->id,
-                    'parts_count' => count($parts),
-                    'converted' => $converted,
-                ]);
-                $validated['correct_answer'] = $converted;
             }
         }
 
         $question->update($validated);
 
-        // Debug: 记录最终存储值
-        $fresh = $question->fresh();
-        \Log::debug('updateQuestion AFTER SAVE', [
-            'question_id' => $fresh->id,
-            'correct_answer_stored' => $fresh->getRawOriginal('correct_answer'),
-            'correct_answer_accessor' => $fresh->correct_answer,
-        ]);
-
         return response()->json([
             'message' => '题目已更新',
-            'data' => $fresh,
+            'data' => $question->fresh(),
         ]);
     }
 
@@ -2101,7 +2071,10 @@ class AdminController extends Controller
 
                         // 正确答案处理
                         if ($type === 5) { // 填空题
-                            $correctAnswer = json_encode(array_map('trim', explode(',', $correctAnswer)), JSON_UNESCAPED_UNICODE);
+                            $parts = array_map(function ($p) {
+                                return Utf8EncodingService::sanitize(trim($p));
+                            }, explode(',', $correctAnswer));
+                            $correctAnswer = Utf8EncodingService::safeJsonEncode($parts, JSON_UNESCAPED_UNICODE);
                         } elseif ($type === 4) { // 简答题
                             $correctAnswer = $correctAnswer ?: null;
                         }

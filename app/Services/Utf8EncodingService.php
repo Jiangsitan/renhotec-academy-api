@@ -140,7 +140,7 @@ class Utf8EncodingService
 
     /**
      * 清理非法 UTF-8 字节
-     * 移除或替换无效的 UTF-8 序列
+     * 逐字节验证，只保留完整的 UTF-8 序列和 ASCII，跳过孤立的 continuation bytes
      */
     public static function sanitize(?string $value): ?string
     {
@@ -157,18 +157,46 @@ class Utf8EncodingService
             return $value;
         }
 
-        // 尝试用 iconv 转换，替换非法字符
+        // 尝试用 iconv 转换，移除无效字节
         $converted = @iconv('UTF-8', 'UTF-8//IGNORE', $value);
-
         if ($converted !== false && mb_check_encoding($converted, 'UTF-8')) {
             return $converted;
         }
 
-        // 最后手段：用正则移除非法字节
-        $sanitized = preg_replace('/[\x80-\x9F\xC0-\xFF]{2,}/', '', $value);
-        $sanitized = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/', '', $sanitized);
-
-        return $sanitized ?: '';
+        // 逐字节重建，只保留完整的 UTF-8 序列
+        $result = '';
+        $len = strlen($value);
+        $i = 0;
+        while ($i < $len) {
+            $byte = ord($value[$i]);
+            if ($byte < 0x80) {
+                // ASCII — 直接保留
+                $result .= $value[$i];
+                $i++;
+            } elseif (($byte & 0xE0) === 0xC0 && $i + 1 < $len
+                && (ord($value[$i + 1]) & 0xC0) === 0x80) {
+                // 有效的 2-byte 序列
+                $result .= substr($value, $i, 2);
+                $i += 2;
+            } elseif (($byte & 0xF0) === 0xE0 && $i + 2 < $len
+                && (ord($value[$i + 1]) & 0xC0) === 0x80
+                && (ord($value[$i + 2]) & 0xC0) === 0x80) {
+                // 有效的 3-byte 序列
+                $result .= substr($value, $i, 3);
+                $i += 3;
+            } elseif (($byte & 0xF8) === 0xF0 && $i + 3 < $len
+                && (ord($value[$i + 1]) & 0xC0) === 0x80
+                && (ord($value[$i + 2]) & 0xC0) === 0x80
+                && (ord($value[$i + 3]) & 0xC0) === 0x80) {
+                // 有效的 4-byte 序列
+                $result .= substr($value, $i, 4);
+                $i += 4;
+            } else {
+                // 无效字节（孤立的 continuation byte 或不完整的序列），跳过
+                $i++;
+            }
+        }
+        return $result;
     }
 
     /**
