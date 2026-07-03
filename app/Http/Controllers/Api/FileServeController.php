@@ -28,22 +28,16 @@ class FileServeController extends Controller
         $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
 
         // 对于 Office 文件，返回转换后的 PDF（PPT 除外，PPT 使用图片序列预览）
+        // 只检查 PDF 是否已存在，不触发同步转换（避免 HTTP 超时）
         $officeExtensions = ['docx', 'doc', 'xlsx', 'xls', 'odt', 'ods', 'odp'];
         if (in_array($ext, $officeExtensions)) {
-            $previewPath = FileConvertService::getPreviewPath($path);
-            if ($previewPath !== $path && $disk->exists($previewPath)) {
-                $path = $previewPath;
+            $baseName = pathinfo($path, PATHINFO_FILENAME);
+            $pdfPath = str_replace('.' . $ext, '.pdf', $path);
+            if ($disk->exists($pdfPath)) {
+                $path = $pdfPath;
                 $ext = 'pdf';
             }
         }
-
-        // 临时禁用 PDF 压缩（调试用）
-        // if ($ext === 'pdf') {
-        //     $compressedPath = $this->compressPdf($path);
-        //     if ($compressedPath) {
-        //         $path = $compressedPath;
-        //     }
-        // }
 
         $mimeType = $disk->mimeType($path);
         $fileSize = $disk->size($path);
@@ -69,7 +63,8 @@ class FileServeController extends Controller
 
     /**
      * Office 文件预览（DOCX、PPTX、XLSX）
-     * 重定向到 PDF 预览
+     * 检查 PDF 是否已转换，返回重定向或错误信息
+     * 不触发同步转换（由异步 Job 处理）
      */
     public function previewOffice(Request $request, string $path): JsonResponse
     {
@@ -90,7 +85,7 @@ class FileServeController extends Controller
         $pdfPath = str_replace('.' . $ext, '.pdf', $path);
 
         if ($disk->exists($pdfPath)) {
-            // 重定向到 PDF 预览
+            // PDF 已存在，重定向到 PDF 预览
             return response()->json([
                 'data' => [
                     'redirect' => route('files.preview', ['path' => $pdfPath]),
@@ -98,16 +93,7 @@ class FileServeController extends Controller
             ]);
         }
 
-        // 尝试即时转换
-        $convertedPath = FileConvertService::convertToPdf($path);
-        if ($convertedPath && $disk->exists($convertedPath)) {
-            return response()->json([
-                'data' => [
-                    'redirect' => route('files.preview', ['path' => $convertedPath]),
-                ]
-            ]);
-        }
-
+        // PDF 不存在，返回错误信息（异步 Job 正在转换中）
         return response()->json([
             'data' => [
                 'error' => true,

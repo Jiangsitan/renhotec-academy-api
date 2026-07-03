@@ -206,8 +206,9 @@ class Utf8EncodingService
     /**
      * 对 JSON 编码进行安全包装
      * 确保输入为有效 UTF-8 后再编码
+     * 失败时返回空数组 JSON "[]" 而非 false，避免调用方未检查返回值导致数据损坏
      */
-    public static function safeJsonEncode(mixed $value, int $flags = JSON_UNESCAPED_UNICODE): string|false
+    public static function safeJsonEncode(mixed $value, int $flags = JSON_UNESCAPED_UNICODE): string
     {
         // 确保数组中的所有字符串值都是有效 UTF-8
         if (is_array($value)) {
@@ -216,7 +217,18 @@ class Utf8EncodingService
             $value = self::ensureUtf8($value);
         }
 
-        return json_encode($value, $flags);
+        $result = json_encode($value, $flags);
+
+        if ($result === false) {
+            \Log::error('safeJsonEncode failed', [
+                'error' => json_last_error_msg(),
+                'value_type' => gettype($value),
+                'value_count' => is_array($value) ? count($value) : null,
+            ]);
+            return '[]';
+        }
+
+        return $result;
     }
 
     /**

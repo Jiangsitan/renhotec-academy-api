@@ -122,7 +122,7 @@ class FileConvertService
         $disk->put($pdfPath, $pdfContent);
 
         // 删除原文件
-        $disk->delete($sourcePath);
+        // $disk->delete($sourcePath); // Disabled: keep original for client-side fallback
 
         // 清理本地临时文件
         self::cleanupTempFiles($localSourcePath, $localPdfPath);

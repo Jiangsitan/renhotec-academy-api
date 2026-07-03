@@ -24,7 +24,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ghostscript \
     python3 \
     python3-pip \
-    libreoffice-impress \
+    libreoffice-writer libreoffice-calc libreoffice-impress \
     fonts-wqy-zenhei \
     fonts-wqy-microhei \
     fonts-noto-cjk \

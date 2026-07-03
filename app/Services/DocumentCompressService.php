@@ -22,7 +22,7 @@ class DocumentCompressService
     public static function needsCompression(string $fileName): bool
     {
         $ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
-        return in_array($ext, ['ppt', 'pptx', 'pdf']);
+        return in_array($ext, ['ppt', 'pptx', 'pdf', 'doc', 'docx', 'xls', 'xlsx']);
     }
 
     /**
