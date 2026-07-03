@@ -1025,7 +1025,7 @@ class AdminController extends Controller
                         array_map('trim', $parts),
                         JSON_UNESCAPED_UNICODE
                     );
-                    \Log::info('createQuestion FILL_BLANK CONVERT', [
+                    \Log::debug('createQuestion FILL_BLANK CONVERT', [
                         'correct_answer_raw' => $validated['correct_answer'],
                         'parts_count' => count($parts),
                         'converted' => $converted,
@@ -1064,7 +1064,7 @@ class AdminController extends Controller
         $validated = $this->ensureUtf8Fields($validated, ['content', 'correct_answer']);
 
         // Debug: 记录原始输入
-        \Log::info('updateQuestion RAW INPUT', [
+        \Log::debug('updateQuestion RAW INPUT', [
             'question_id' => $question->id,
             'correct_answer_raw' => $request->input('correct_answer'),
             'correct_answer_type' => gettype($request->input('correct_answer')),
@@ -1085,7 +1085,7 @@ class AdminController extends Controller
                     JSON_UNESCAPED_UNICODE
                 );
                 // Debug: 记录转换结果
-                \Log::info('updateQuestion FILL_BLANK CONVERT (type in update)', [
+                \Log::debug('updateQuestion FILL_BLANK CONVERT (type in update)', [
                     'question_id' => $question->id,
                     'parts_count' => count($parts),
                     'converted' => $converted,
@@ -1103,7 +1103,7 @@ class AdminController extends Controller
                     JSON_UNESCAPED_UNICODE
                 );
                 // Debug: 记录转换结果
-                \Log::info('updateQuestion FILL_BLANK CONVERT (existing type)', [
+                \Log::debug('updateQuestion FILL_BLANK CONVERT (existing type)', [
                     'question_id' => $question->id,
                     'parts_count' => count($parts),
                     'converted' => $converted,
@@ -1116,7 +1116,7 @@ class AdminController extends Controller
 
         // Debug: 记录最终存储值
         $fresh = $question->fresh();
-        \Log::info('updateQuestion AFTER SAVE', [
+        \Log::debug('updateQuestion AFTER SAVE', [
             'question_id' => $fresh->id,
             'correct_answer_stored' => $fresh->getRawOriginal('correct_answer'),
             'correct_answer_accessor' => $fresh->correct_answer,

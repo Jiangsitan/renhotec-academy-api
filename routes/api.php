@@ -196,23 +196,4 @@ Route::middleware('auth.api')->group(function () {
         Route::post('/upload/oss-complete', [FileUploadController::class, 'ossUploadComplete']);
     });
 
-        // 临时诊断端点 (调试后应删除)
-        Route::get('/debug/encoding/{question}', function (\App\Models\Question $question) {
-            $raw = $question->getRawOriginal('correct_answer');
-            $accessor = $question->correct_answer;
-            $encoding = \App\Services\Utf8EncodingService::detectEncoding($raw ?? '');
-            $ensureUtf8 = $raw ? \App\Services\Utf8EncodingService::ensureUtf8($raw) : null;
-
-            return response()->json([
-                'question_id' => $question->id,
-                'raw_db_value' => $raw,
-                'raw_hex' => $raw ? bin2hex($raw) : null,
-                'raw_bytes' => $raw ? strlen($raw) : 0,
-                'mb_check_encoding' => $raw ? mb_check_encoding($raw, 'UTF-8') : null,
-                'detected_encoding' => $encoding,
-                'ensureUtf8_result' => $ensureUtf8,
-                'ensureUtf8_hex' => $ensureUtf8 ? bin2hex($ensureUtf8) : null,
-                'accessor_result' => $accessor,
-            ]);
-        });
 });
