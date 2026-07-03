@@ -220,15 +220,61 @@ class Utf8EncodingService
         $result = json_encode($value, $flags);
 
         if ($result === false) {
+            $byteDetails = [];
+            if (is_array($value)) {
+                foreach ($value as $k => $v) {
+                    if (is_string($v)) {
+                        $byteDetails[$k] = [
+                            'value' => $v,
+                            'hex' => bin2hex($v),
+                            'bytes' => strlen($v),
+                            'utf8' => mb_check_encoding($v, 'UTF-8'),
+                            'codepoints' => self::getCodepoints($v),
+                        ];
+                    } else {
+                        $byteDetails[$k] = ['value' => $v, 'type' => gettype($v)];
+                    }
+                }
+            }
             \Log::error('safeJsonEncode failed', [
                 'error' => json_last_error_msg(),
+                'error_code' => json_last_error(),
                 'value_type' => gettype($value),
                 'value_count' => is_array($value) ? count($value) : null,
+                'byte_details' => $byteDetails,
             ]);
-            return '[]';
+            return is_array($value) ? '[]' : '{}';
         }
 
         return $result;
+    }
+
+    /**
+     * 获取字符串中每个字符的 Unicode 码点
+     */
+    private static function getCodepoints(string $str): array
+    {
+        $codepoints = [];
+        $len = strlen($str);
+        $i = 0;
+        while ($i < $len) {
+            $byte = ord($str[$i]);
+            if ($byte < 0x80) {
+                $codepoints[] = sprintf('U+%04X', $byte);
+                $i += 1;
+            } elseif ($byte < 0xE0) {
+                $codepoints[] = sprintf('U+%04X', (($byte & 0x1F) << 6) | (ord($str[$i + 1]) & 0x3F));
+                $i += 2;
+            } elseif ($byte < 0xF0) {
+                $codepoints[] = sprintf('U+%04X', (($byte & 0x0F) << 12) | ((ord($str[$i + 1]) & 0x3F) << 6) | (ord($str[$i + 2]) & 0x3F));
+                $i += 3;
+            } else {
+                $cp = (($byte & 0x07) << 18) | ((ord($str[$i + 1]) & 0x3F) << 12) | ((ord($str[$i + 2]) & 0x3F) << 6) | (ord($str[$i + 3]) & 0x3F);
+                $codepoints[] = sprintf('U+%04X', $cp);
+                $i += 4;
+            }
+        }
+        return $codepoints;
     }
 
     /**
