@@ -1018,12 +1018,9 @@ class AdminController extends Controller
                 if (self::isJsonArray($validated['correct_answer'])) {
                     // 已经是 JSON 数组，跳过转换
                 } else {
-                    // 支持逗号或中文逗号分隔，逐元素清理无效 UTF-8 字节
                     $parts = preg_split('/[,，]/', $validated['correct_answer']);
-                    $parts = array_map(function ($p) {
-                        return Utf8EncodingService::sanitize(trim($p));
-                    }, $parts);
-                    // 裁剪尾部空元素，确保存储的数组长度与实际空位数量一致
+                    $parts = array_map('trim', $parts);
+                    // 裁剪尾部空元素
                     while (count($parts) > 0 && end($parts) === '') {
                         array_pop($parts);
                     }
@@ -1069,9 +1066,7 @@ class AdminController extends Controller
                 // 已经是 JSON 数组，跳过转换
             } else {
                 $parts = preg_split('/[,，]/', $validated['correct_answer']);
-                $parts = array_map(function ($p) {
-                    return Utf8EncodingService::sanitize(trim($p));
-                }, $parts);
+                $parts = array_map('trim', $parts);
                 // 裁剪尾部空元素
                 while (count($parts) > 0 && end($parts) === '') {
                     array_pop($parts);
@@ -1086,9 +1081,7 @@ class AdminController extends Controller
                 // 已经是 JSON 数组，跳过转换
             } else {
                 $parts = preg_split('/[,，]/', $validated['correct_answer']);
-                $parts = array_map(function ($p) {
-                    return Utf8EncodingService::sanitize(trim($p));
-                }, $parts);
+                $parts = array_map('trim', $parts);
                 // 裁剪尾部空元素
                 while (count($parts) > 0 && end($parts) === '') {
                     array_pop($parts);
@@ -2081,9 +2074,7 @@ class AdminController extends Controller
 
                         // 正确答案处理
                         if ($type === 5) { // 填空题
-                            $parts = array_map(function ($p) {
-                                return Utf8EncodingService::sanitize(trim($p));
-                            }, explode(',', $correctAnswer));
+                            $parts = array_map('trim', explode(',', $correctAnswer));
                             // 裁剪尾部空元素
                             while (count($parts) > 0 && end($parts) === '') {
                                 array_pop($parts);
