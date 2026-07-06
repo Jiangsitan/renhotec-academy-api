@@ -1022,6 +1022,10 @@ class AdminController extends Controller
                         array_pop($decoded);
                     }
                     $validated['correct_answer'] = json_encode($decoded, JSON_UNESCAPED_UNICODE);
+                } elseif (str_contains($validated['correct_answer'], ',')) {
+                    // 逗号分隔字符串转为 JSON 数组
+                    $parts = array_map('trim', explode(',', $validated['correct_answer']));
+                    $validated['correct_answer'] = json_encode($parts, JSON_UNESCAPED_UNICODE);
                 }
             }
         }
@@ -1054,7 +1058,7 @@ class AdminController extends Controller
 
         $validated = $this->ensureUtf8Fields($validated, ['content', 'correct_answer']);
 
-        // 填空题：前端发 JSON 数组，直接解码存储
+        // 填空题：前端可能发 JSON 数组或逗号分隔字符串，统一转为 JSON 数组存储
         if (isset($validated['correct_answer']) && is_string($validated['correct_answer'])
             && ((isset($validated['type']) && $validated['type'] == 5) || (isset($question->type) && $question->type == 5))) {
             $decoded = json_decode($validated['correct_answer'], true);
@@ -1063,6 +1067,10 @@ class AdminController extends Controller
                     array_pop($decoded);
                 }
                 $validated['correct_answer'] = json_encode($decoded, JSON_UNESCAPED_UNICODE);
+            } elseif (str_contains($validated['correct_answer'], ',')) {
+                // 逗号分隔字符串转为 JSON 数组
+                $parts = array_map('trim', explode(',', $validated['correct_answer']));
+                $validated['correct_answer'] = json_encode($parts, JSON_UNESCAPED_UNICODE);
             }
         }
 
@@ -1100,13 +1108,13 @@ class AdminController extends Controller
                 $query->where('exam_records.status', ExamRecordStatus::PendingReview);
             } elseif ($status === 'passed') {
                 $query->where('exam_records.status', ExamRecordStatus::Graded)
-                      ->whereColumn('exam_records.total_score', '>=', 'exams.passing_score');
+                      ->whereRaw('exam_records.total_score >= (SELECT passing_score FROM exams WHERE exams.id = exam_records.exam_id)');
             } elseif ($status === 'failed') {
                 $query->where(function ($q) {
                     $q->where('exam_records.status', ExamRecordStatus::Rejected)
                       ->orWhere(function ($q2) {
                           $q2->where('exam_records.status', ExamRecordStatus::Graded)
-                             ->whereColumn('exam_records.total_score', '<', 'exams.passing_score');
+                             ->whereRaw('exam_records.total_score < (SELECT passing_score FROM exams WHERE exams.id = exam_records.exam_id)');
                       });
                 });
             }
