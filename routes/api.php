@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\HomepageController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\SeriesController;
 use App\Http\Controllers\Api\SettingController;
+use App\Http\Controllers\Api\SsoController;
 use Illuminate\Support\Facades\Route;
 
 // 公开路由 - 认证
@@ -194,6 +195,18 @@ Route::middleware('auth.api')->group(function () {
         Route::post('/upload/multipart/sign', [FileUploadController::class, 'multipartSign']);
         Route::post('/upload/multipart/complete', [FileUploadController::class, 'multipartComplete']);
         Route::post('/upload/oss-complete', [FileUploadController::class, 'ossUploadComplete']);
+
+        // SSO 登出
+        Route::post('/sso/logout', [SsoController::class, 'logout']);
     });
+
+    // SSO 管理接口（仅 admin）
+    Route::middleware('role:admin')->prefix('admin')->group(function () {
+        Route::post('/sso/sync-all', [SsoController::class, 'syncAllUsers']);
+        Route::post('/sso/fill-uid', [SsoController::class, 'fillSsoUid']);
+    });
+
+    // SSO 中心拉取用户（需要 client_id + client_secret 验证，无需用户认证）
+    Route::post('/sso/users/pull', [SsoController::class, 'pullUsers']);
 
 });

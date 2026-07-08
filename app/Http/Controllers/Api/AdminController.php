@@ -118,7 +118,7 @@ class AdminController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:100',
             'employee_no' => 'required|string|max:50|unique:users',
-            'email' => 'nullable|email|max:255|unique:users',
+            'email' => 'required|email|max:255|unique:users',
             'phone' => 'nullable|string|max:20',
             'password' => ['required', 'string', Password::min(6)],
             'department' => 'nullable|string|max:100',
@@ -166,7 +166,7 @@ class AdminController extends Controller
     {
         $validated = $request->validate([
             'name' => 'sometimes|string|max:100',
-            'email' => 'nullable|email|max:255|unique:users,email,' . $user->id,
+            'email' => 'required|email|max:255|unique:users,email,' . $user->id,
             'phone' => 'nullable|string|max:20',
             'department' => 'nullable|string|max:100',
             'position' => 'nullable|string|max:100',
@@ -1359,8 +1359,13 @@ class AdminController extends Controller
                 $mentorEmployeeNo = trim($row[$columnMap['导师工号']] ?? '');
 
                 // 必填验证
-                if (!$employeeNo || !$name || !$role) {
-                    throw new \Exception('工号、姓名、角色为必填项');
+                if (!$employeeNo || !$name || !$role || !$email) {
+                    throw new \Exception('工号、姓名、邮箱、角色为必填项');
+                }
+
+                // 邮箱格式验证
+                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    throw new \Exception("邮箱 {$email} 格式不正确");
                 }
 
                 // 角色验证
@@ -1375,13 +1380,11 @@ class AdminController extends Controller
                     // 部分更新：只更新提供的字段
                     $updateData = [];
                     if ($name) $updateData['name'] = $name;
-                    if ($email) {
-                        $emailConflict = User::where('email', $email)->where('id', '!=', $existingUser->id)->exists();
-                        if ($emailConflict) {
-                            throw new \Exception("邮箱 {$email} 已被其他用户使用");
-                        }
-                        $updateData['email'] = $email;
+                    $emailConflict = User::where('email', $email)->where('id', '!=', $existingUser->id)->exists();
+                    if ($emailConflict) {
+                        throw new \Exception("邮箱 {$email} 已被其他用户使用");
                     }
+                    $updateData['email'] = $email;
                     if ($phone) $updateData['phone'] = $phone;
                     if ($password) $updateData['password'] = Hash::make($password);
                     if ($role) $updateData['role'] = $role;
@@ -1406,8 +1409,8 @@ class AdminController extends Controller
 
                     $updated++;
                 } else {
-                    // 检查邮箱唯一性（仅在提供邮箱时）
-                    if ($email && User::where('email', $email)->exists()) {
+                    // 检查邮箱唯一性
+                    if (User::where('email', $email)->exists()) {
                         throw new \Exception("邮箱 {$email} 已被其他用户使用");
                     }
 
