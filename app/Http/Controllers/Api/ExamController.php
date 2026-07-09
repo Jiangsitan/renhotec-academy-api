@@ -129,8 +129,9 @@ class ExamController extends Controller
      * 数据库存储 ENUM('single','multiple','truefalse','short_answer','fill_blank')
      * 但前端统一使用整数 1-5
      */
-    private static function normalizeQuestionType(string|int $type): int
+    private static function normalizeQuestionType(string|int|null $type): int
     {
+        if ($type === null) return 0;
         $map = [
             'single' => 1,
             'multiple' => 2,

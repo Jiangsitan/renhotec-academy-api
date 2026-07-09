@@ -118,7 +118,7 @@ class AdminController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:100',
             'employee_no' => 'required|string|max:50|unique:users',
-            'email' => 'required|email|max:255|unique:users',
+            'email' => 'nullable|email|max:255|unique:users',
             'phone' => 'nullable|string|max:20',
             'password' => ['required', 'string', Password::min(6)],
             'department' => 'nullable|string|max:100',
@@ -136,6 +136,11 @@ class AdminController extends Controller
 
         $validated['password'] = Hash::make($validated['password']);
         $validated['status'] = 'active';
+        
+        // Auto-set is_placeholder_email when no email provided
+        if (empty($validated['email'])) {
+            $validated['is_placeholder_email'] = true;
+        }
 
         $user = User::create($validated);
 
@@ -166,7 +171,7 @@ class AdminController extends Controller
     {
         $validated = $request->validate([
             'name' => 'sometimes|string|max:100',
-            'email' => 'required|email|max:255|unique:users,email,' . $user->id,
+            'email' => 'nullable|email|max:255|unique:users,email,' . $user->id,
             'phone' => 'nullable|string|max:20',
             'department' => 'nullable|string|max:100',
             'position' => 'nullable|string|max:100',
@@ -1359,13 +1364,20 @@ class AdminController extends Controller
                 $mentorEmployeeNo = trim($row[$columnMap['导师工号']] ?? '');
 
                 // 必填验证
-                if (!$employeeNo || !$name || !$role || !$email) {
-                    throw new \Exception('工号、姓名、邮箱、角色为必填项');
+                if (!$employeeNo || !$name || !$role) {
+                    throw new \Exception('工号、姓名、角色为必填项');
                 }
 
-                // 邮箱格式验证
-                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                    throw new \Exception("邮箱 {$email} 格式不正确");
+                // Auto-generate placeholder email if not provided
+                if (empty($email)) {
+                    $email = "{$employeeNo}@internal.renhotec.cn";
+                    $isPlaceholderEmail = true;
+                } else {
+                    // 邮箱格式验证
+                    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                        throw new \Exception("邮箱 {$email} 格式不正确");
+                    }
+                    $isPlaceholderEmail = false;
                 }
 
                 // 角色验证
@@ -1419,6 +1431,7 @@ class AdminController extends Controller
                         'name' => $name,
                         'employee_no' => $employeeNo,
                         'email' => $email,
+                        'is_placeholder_email' => $isPlaceholderEmail,
                         'phone' => $phone ?: null,
                         'password' => Hash::make($password ?: '123456'),
                         'role' => $role,
@@ -2114,5 +2127,42 @@ class AdminController extends Controller
         }
         $decoded = json_decode($trimmed, true);
         return is_array($decoded);
+    }
+
+    /**
+     * 批量填充占位邮箱
+     * 为没有邮箱的用户生成 {employee_no}@internal.renhotec.cn 格式的占位邮箱
+     */
+    public function fillEmails(): array
+    {
+        $usersWithoutEmail = User::whereNull('email')
+            ->orWhere('email', '')
+            ->get();
+
+        $updated = 0;
+
+        foreach ($usersWithoutEmail as $user) {
+            $placeholderEmail = "{$user->employee_no}@internal.renhotec.cn";
+            
+            // Check if placeholder email already exists
+            $exists = User::where('email', $placeholderEmail)
+                ->where('id', '!=', $user->id)
+                ->exists();
+            
+            if ($exists) {
+                // Add random suffix
+                $suffix = substr(md5(uniqid(mt_rand(), true)), 0, 8);
+                $placeholderEmail = "{$user->employee_no}_{$suffix}@internal.renhotec.cn";
+            }
+
+            $user->update([
+                'email' => $placeholderEmail,
+                'is_placeholder_email' => true,
+            ]);
+
+            $updated++;
+        }
+
+        return ['updated' => $updated];
     }
 }

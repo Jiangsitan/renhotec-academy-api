@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'sso_url'               => env('SSO_CENTER_URL', 'https://home.renhotec.cn'),
+    'sso_url'               => env('SSO_CENTER_URL', 'https://sso.example.com'),
     'client_id'             => env('SSO_CLIENT_ID', ''),
     'client_secret'         => env('SSO_CLIENT_SECRET', ''),
     'sso_uuid_namespace'    => env('SSO_UUID', '6ba7b810-9dad-11d1-80b4-00c04fd430c8'),

@@ -303,27 +303,115 @@ class SsoController extends Controller
     }
 
     /**
+     * SSO 连通性诊断
+     *
+     * 检查 SSO 中心平台的连通性和配置状态
+     *
+     * @return JsonResponse
+     */
+    public function testConnection(): JsonResponse
+    {
+        $ssoUrl     = config('sso-client.sso_url');
+        $clientId   = config('sso-client.client_id');
+        $secretLen  = strlen(config('sso-client.client_secret', ''));
+
+        $result = [
+            'config' => [
+                'sso_url'          => $ssoUrl,
+                'client_id'        => $clientId,
+                'client_secret_set' => $secretLen > 0,
+                'client_secret_length' => $secretLen,
+            ],
+            'checks' => [],
+        ];
+
+        // 1. 检查配置完整性
+        if (empty($ssoUrl) || empty($clientId) || $secretLen === 0) {
+            $result['checks'][] = [
+                'name'   => '配置完整性',
+                'status' => 'fail',
+                'message' => 'SSO 配置不完整，请检查 SSO_CENTER_URL、SSO_CLIENT_ID、SSO_CLIENT_SECRET',
+            ];
+            $result['success'] = false;
+
+            return response()->json($result, 422);
+        }
+
+        $result['checks'][] = [
+            'name'    => '配置完整性',
+            'status'  => 'pass',
+            'message' => 'SSO 配置完整',
+        ];
+
+        // 2. 检查 SSO 中心平台网络连通性
+        try {
+            $response = \Illuminate\Support\Facades\Http::timeout(10)
+                ->get($ssoUrl);
+
+            $result['checks'][] = [
+                'name'    => '网络连通性',
+                'status'  => 'pass',
+                'message' => 'SSO 中心平台可达（HTTP ' . $response->status() . '）',
+                'latency_ms' => round($response->transferStats->getTime() * 1000, 1),
+            ];
+        } catch (\Exception $e) {
+            $result['checks'][] = [
+                'name'    => '网络连通性',
+                'status'  => 'fail',
+                'message' => '无法连接 SSO 中心平台：' . $e->getMessage(),
+            ];
+            $result['success'] = false;
+
+            return response()->json($result, 502);
+        }
+
+        // 3. 检查用户数量（SSO 同步就绪状态）
+        $userCount = User::count();
+        $ssoUidCount = User::whereNotNull('sso_uid')->where('sso_uid', '!=', '')->count();
+        $result['checks'][] = [
+            'name'    => '用户就绪状态',
+            'status'  => 'pass',
+            'message' => "共 {$userCount} 个用户，{$ssoUidCount} 个已分配 sso_uid",
+        ];
+
+        $result['success'] = true;
+        $result['message'] = 'SSO 连通性诊断通过';
+
+        Log::info('SSO连通性诊断完成', [
+            'success' => true,
+            'sso_url' => $ssoUrl,
+        ]);
+
+        return response()->json($result);
+    }
+
+    /**
      * 查找或创建本地用户
      *
-     * 优先通过 sso_uid 匹配，其次通过 email 匹配
+     * 优先通过 sso_uid 匹配，其次通过 email 匹配，最后通过 employee_no 兜底匹配
      *
      * @param array $userInfo
      * @return User|null
      */
     protected function findOrCreateUser(array $userInfo): ?User
     {
-        $ssoUid = $userInfo['sso_uid'] ?? null;
-        $email  = $userInfo['email'] ?? null;
+        $ssoUid     = $userInfo['sso_uid'] ?? null;
+        $email      = $userInfo['email'] ?? null;
+        $employeeNo = $userInfo['employee_no'] ?? null;
 
         // 1. 通过 sso_uid 查找
         if ($ssoUid) {
             $user = User::where('sso_uid', $ssoUid)->first();
             if ($user) {
+                Log::info('SSO用户匹配成功', [
+                    'method'  => 'sso_uid',
+                    'user_id' => $user->id,
+                ]);
                 return $user;
             }
         }
 
-        // 2. 通过 email 查找（兜底匹配）
+        // 2. 通过 email 查找
         if ($email) {
             $user = User::where('email', $email)->first();
             if ($user) {
@@ -333,11 +421,53 @@ class SsoController extends Controller
                     $user->save();
                 }
 
+                // 如果是占位邮箱用户，更新为 SSO 真实邮箱
+                if ($user->is_placeholder_email && $email !== $user->email) {
+                    $user->update([
+                        'email' => $email,
+                        'is_placeholder_email' => false,
+                    ]);
+                    Log::info('SSO用户邮箱更新', [
+                        'user_id' => $user->id,
+                        'old_email' => $user->email,
+                        'new_email' => $email,
+                    ]);
+                }
+
+                Log::info('SSO用户匹配成功', [
+                    'method'  => 'email',
+                    'user_id' => $user->id,
+                ]);
                 return $user;
             }
         }
 
-        // 3. 自动创建用户（如果开启）
+        // 3. 通过 employee_no 兜底匹配
+        if ($employeeNo) {
+            $user = User::where('employee_no', $employeeNo)->first();
+            if ($user) {
+                // 补充 sso_uid
+                if (empty($user->sso_uid)) {
+                    $user->sso_uid = $ssoUid;
+                }
+
+                // 更新邮箱（如果 SSO 提供了邮箱）
+                if ($email && $email !== $user->email) {
+                    $user->email = $email;
+                    $user->is_placeholder_email = false;
+                }
+
+                $user->save();
+
+                Log::info('SSO用户匹配成功', [
+                    'method'  => 'employee_no',
+                    'user_id' => $user->id,
+                ]);
+                return $user;
+            }
+        }
+
+        // 4. 自动创建用户（如果开启）
         if (config('sso-client.auto_create_user', true) && $email) {
             try {
                 $namespace = config('sso-client.sso_uuid_namespace', '6ba7b810-9dad-11d1-80b4-00c04fd430c8');
@@ -347,7 +477,7 @@ class SsoController extends Controller
                     'sso_uid'     => $generatedSsoUid,
                     'name'        => $userInfo['name'] ?? $email,
                     'email'       => $email,
-                    'employee_no' => $userInfo['employee_no'] ?? '',
+                    'employee_no' => $employeeNo ?? '',
                     'password'    => bcrypt(''),
                     'role'        => 'student',
                     'status'      => 'active',

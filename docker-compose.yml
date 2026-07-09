@@ -47,6 +47,9 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6479
       - REDIS_PASSWORD=${REDIS_PASSWORD:-Rh_2026}
+      - SSO_CENTER_URL=${SSO_CENTER_URL:-https://home.renhotec.cn}
+      - SSO_CLIENT_ID=${SSO_CLIENT_ID:-Academy_001}
+      - SSO_CLIENT_SECRET=${SSO_CLIENT_SECRET}
     depends_on:
       mysql:
         condition: service_healthy
@@ -94,6 +97,8 @@ services:
       - "3000:3000"
     environment:
       - NUXT_PUBLIC_API_BASE=/api
+      - NUXT_PUBLIC_SSO_URL=${NUXT_PUBLIC_SSO_URL:-https://home.renhotec.cn}
+      - NUXT_PUBLIC_SSO_CLIENT_ID=${NUXT_PUBLIC_SSO_CLIENT_ID:-Academy_001}
 
 volumes:
   mysql_data:

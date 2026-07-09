@@ -204,9 +204,11 @@ Route::middleware('auth.api')->group(function () {
     Route::middleware('role:admin')->prefix('admin')->group(function () {
         Route::post('/sso/sync-all', [SsoController::class, 'syncAllUsers']);
         Route::post('/sso/fill-uid', [SsoController::class, 'fillSsoUid']);
+        Route::post('/sso/fill-emails', [AdminController::class, 'fillEmails']);
+        Route::get('/sso/test-connection', [SsoController::class, 'testConnection']);
     });
 
-    // SSO 中心拉取用户（需要 client_id + client_secret 验证，无需用户认证）
-    Route::post('/sso/users/pull', [SsoController::class, 'pullUsers']);
-
 });
+
+// SSO 中心拉取用户（公开接口，仅需 client_id + client_secret 验证，无需用户 Sanctum Token）
+Route::post('/sso/users/pull', [SsoController::class, 'pullUsers']);

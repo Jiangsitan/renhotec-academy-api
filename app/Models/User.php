@@ -17,6 +17,7 @@ class User extends Authenticatable
         'name',
         'employee_no',
         'email',
+        'is_placeholder_email',
         'phone',
         'password',
         'department',
@@ -40,6 +41,7 @@ class User extends Authenticatable
             'hire_date' => 'date',
             'trial_end_date' => 'date',
             'role' => UserRole::class,
+            'is_placeholder_email' => 'boolean',
         ];
     }
 

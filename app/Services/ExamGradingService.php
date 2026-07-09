@@ -44,6 +44,7 @@ class ExamGradingService
             $isCorrect = $this->checkAnswer($question, $answer['answer'] ?? '');
             $answer['is_correct'] = $isCorrect;
             $answer['score_awarded'] = $isCorrect ? (float) $question->score : 0;
+            $answer['auto_graded'] = true;
             $objectiveScore += $answer['score_awarded'];
 
             return $answer;
